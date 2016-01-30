@@ -151,7 +151,19 @@ copy "$(CudaToolkitBinDir)\cudart*.dll" "$(OutDir)"</Command>
     </CudaCompile>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <CudaCompile Include="kernel.cu" />
+    <CudaCompile Include="Disper.cu" />
+    <CudaCompile Include="Disper_kernel.cu" />
+    <CudaCompile Include="SeedFunctions.cu" />
+  </ItemGroup>
+  <ItemGroup>
+    <Text Include="DisperGPU.log" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="Header.cuh" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="partfunk.cpp" />
+    <ClCompile Include="Readgrid.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
