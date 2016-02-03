@@ -169,8 +169,8 @@ void readgridsize(char ncfile[], char Uvar[], char Vvar[], char hhvar[],int &nt,
 	}
 	
 	//allocate
-	//xcoord = (float *)malloc(nx*ny*sizeof(float));
-	//ycoord = (float *)malloc(nx*ny*sizeof(float));
+	xcoord = (float *)malloc(nx*ny*sizeof(float));
+	ycoord = (float *)malloc(nx*ny*sizeof(float));
 	
 	//inquire variable name for x dimension
 	//aka x dim of hh

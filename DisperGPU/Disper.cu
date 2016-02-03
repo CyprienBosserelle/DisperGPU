@@ -206,8 +206,8 @@ int main()
 	distX = (float *)malloc(nx*ny*sizeof(float));
 	distY = (float *)malloc(nx*ny*sizeof(float));
 
-	xcoord = (float *)malloc(nx*ny*sizeof(float));
-	ycoord = (float *)malloc(nx*ny*sizeof(float));
+	//xcoord = (float *)malloc(nx*ny*sizeof(float));// Already allocated in readgridsize subroutine
+	//ycoord = (float *)malloc(nx*ny*sizeof(float));
 
 	//Nincel
 	Nincel = (float *)malloc(nx*ny*sizeof(float));
@@ -250,10 +250,11 @@ int main()
 
 	readHDstep(ncfile, Uvarname, Vvarname, hhvarname, nx, ny, steptoread, lev, Uo, Vo, hho);
 
+	printf("Allocating CPU memory for particle position... ");
 	//Initialise particles on CPU
 	partpos = (float4 *)malloc(np*sizeof(float4));
 	//partpos[50] = make_float4(0.0f, 1.0f, 5.0f, 0.2);
-
+	printf("...done.\n");
 	//printf("partpos.x=%f", partpos[50].z);
 	
 
