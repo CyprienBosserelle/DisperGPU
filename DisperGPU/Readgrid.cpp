@@ -73,7 +73,7 @@ void readgridsize(char ncfile[], char Uvar[], char Vvar[], char hhvar[],int &nt,
 	if (status != NC_NOERR) handle_error(status);
 
 	//inquire variable by name
-	//printf("nvars=%s\n",Uvar);
+	printf("Reading information aboout %s...",Uvar);
 	status = nc_inq_varid(ncid, Uvar, &varid);
 	if (status != NC_NOERR) 
 		handle_error(status);
@@ -95,8 +95,8 @@ void readgridsize(char ncfile[], char Uvar[], char Vvar[], char hhvar[],int &nt,
 
 		//printf("dim:%d=%d\n", iddim, ddimU[iddim]);
 	}
-
-	status = nc_inq_varid(ncid, Uvar, &varid);
+	printf(" %s...", Vvar);
+	status = nc_inq_varid(ncid, Vvar, &varid);
 	if (status != NC_NOERR)
 		handle_error(status);
 	
@@ -121,7 +121,7 @@ void readgridsize(char ncfile[], char Uvar[], char Vvar[], char hhvar[],int &nt,
 	}
 
 
-
+	printf(" %s...\n", hhvar);
 	status = nc_inq_varid(ncid, hhvar, &varid);
 	if (status != NC_NOERR)
 		handle_error(status);
@@ -342,4 +342,136 @@ void readHDstep(char ncfile[], char Uvar[], char Vvar[], char hhvar[], int nx, i
 
 	status = nc_close(ncid);
 	printf("...done\n");
+}
+
+void Calcmaxstep(int nx, int ny, float &dt, float hddt, float *Uo, float *Vo, float *Un, float *Vn, float * distX, float *distY)
+{
+	float tmin = 99999999999.0f;
+	float Velmin = 0.0000001f; // Needed to avoid dividing by zero
+	float Umax;
+	float Vmax;
+	float Uttc,Vttc;
+	float CFL = 0.9f;
+	
+	for (int i = 0; i < nx; i++)
+	{
+		for (int j = 0; j < ny; j++)
+		{
+			Umax = max(max(Uo[i + j*nx], Un[i + j*nx]), Velmin);
+			Vmax = max(max(Uo[i + j*nx], Un[i + j*nx]), Velmin);
+
+			Uttc = distX[i + j*nx] / Umax;
+			Vttc = distY[i + j*nx] / Vmax;
+			tmin = min(tmin, Uttc);
+			tmin = min(tmin, Vttc);
+		}
+	}
+	dt = min(max(CFL*tmin,Velmin),hddt/4); // make sure dt is above round off error and make sure there are going to be at least 4 step in between each HDstep.
+	printf("New timestep: dt = %f\n", dt);
+}
+
+
+void NextstepCPU(int nx, int ny, float *&Uo, float *&Vo, float *&hho, float *Un, float *Vn,  float *hhn)
+{
+	for (int i = 0; i < nx; i++)
+	{
+		for (int j = 0; j < ny; j++)
+		{
+			Uo[i + j*nx] = Un[i + j*nx];
+			Vo[i + j*nx] = Vn[i + j*nx];
+			hho[i + j*nx] = hhn[i + j*nx];
+		}
+	}
+}
+
+void InterpstepCPU(int nx, int ny, int backswitch, int hdstep, float totaltime,float hddt, float *&Ux, float *Uo, float *Un)
+{
+	float fac = 1.0;
+	float Uxo, Uxn;
+	
+	/*Ums[tx]=Umask[ix];*/
+
+
+	if (backswitch>0)
+	{
+		fac = -1.0f;
+	}
+
+
+	for (int i = 0; i < nx; i++)
+	{
+		for (int j = 0; j < ny; j++)
+		{
+			Uxo = fac*Uo[i + nx*j];
+			Uxn = fac*Un[i + nx*j];
+
+			Ux[i + nx*j] = Uxo + (totaltime - hddt*hdstep)*(Uxn - Uxo) / hddt;
+		}
+	}
+}
+
+float interp2posCPU(int nx, int ny, float x, float y, float *Ux)
+{
+	int x1,x2;
+	int y1,y2;
+
+	x1 = floor(x);
+	x2 = x1+1;
+
+	y1 = floor(y);
+	y2 = y1+1;
+
+	float Q11 = Ux[x1 + y1*nx];
+	float Q12 = Ux[x1 + y2*nx];
+	float Q21 = Ux[x2 + y1*nx];
+	float Q22 = Ux[x2 + y2*nx];
+
+	float R1 = ((x2 - x) / (x2 - x1))*Q11 + ((x - x1)/(x2 - x1))*Q21;
+
+
+	float R2 = ((x2 - x) / (x2 - x1))*Q12 + ((x - x1) / (x2 - x1))*Q22;
+
+	//	After the two R values are calculated, the value of P can finally be calculated by a weighted average of R1 and R2.
+
+	float P = ((y2 - y) / (y2 - y1))*R1 + ((y - y1) / (y2 - y1))*R2;
+
+	return P;
+}
+
+void updatepartposCPU(int nx, int ny, int np, float dt, float Eh, float *Ux, float *Vx, float *hhx,float *distX, float *distY, float4 *&partpos)
+{
+	float xxx,yyy,zzz,ttt;
+	float Up, Vp, hhp;
+	float ddx, ddy;
+	float Xd, Yd;
+
+	//float xxn, yyn;
+
+
+	for (int p = 0; p < np; p++)
+	{
+		xxx = partpos[p].x; //should be in i,j
+		yyy = partpos[p].y;
+		zzz = partpos[p].z;
+		ttt = partpos[p].w;
+		if (ttt > 0.0)
+		{
+			Up = interp2posCPU(nx, ny, xxx, yyy, Ux);
+			Vp = interp2posCPU(nx, ny, xxx, yyy, Vx);
+			hhp = interp2posCPU(nx, ny, xxx, yyy, hhx);
+			ddx = interp2posCPU(nx, ny, xxx, yyy, distX);
+			ddy = interp2posCPU(nx, ny, xxx, yyy, distY);
+
+			Xd = sqrtf(-4.0f * Eh*dt*logf(1 - rand() % 1))*cosf(2 * pi*(rand() % 1));
+			Yd = sqrtf(-4.0f * Eh*dt*logf(1 - rand() % 1))*sinf(2 * pi*(rand() % 1));
+
+			xxx = xxx + (Up*dt + Xd) / ddx; // Need to add the runge kutta scheme here or not
+			yyy = yyy + (Vp*dt + Yd) / ddy;
+			
+			
+		}
+		partpos[p] = make_float4(xxx, yyy, zzz, ttt);
+
+
+	}
 }

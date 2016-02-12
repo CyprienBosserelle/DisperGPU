@@ -55,9 +55,10 @@ int partmode; // Particle model type: 0:test set up the model but do not run any
 float4 * partpos,*partpos_g; //Particule position x,y,z,t
 
 int nx, ny, nz, nt; //HD input may have a more complex structure with staggered grid 
-
+float totaltime; // needed to track total time as dt can vary
 float *Uo, *Un; //U velocity, Step 0 and step n
 float *Vo, *Vn; //V velocity, Step 0 and step n
+float *Ux, *Vx, *hhx; // U and V velocity at the dispersal step
 float *hho, *hhn; // Water depth, Step 0 and step n
 float *Uo_g, *Un_g, *Ux_g; //Same on GPU plus at t particle step
 float *Vo_g, *Vn_g, *Vx_g; // Same on GPU plus at t particle step
@@ -73,11 +74,12 @@ float *Nincel_g, *cNincel_g, *cTincel_g; // Number of particle in cell, Cumulati
 
 float *distX, *distY; // Distance calculated between cells
 float *xcoord, *ycoord; // REal world coordinates
-
-int stp, outstep, nextoutstep, outtype; // Model step, output step, next output step, output file type
+float nextouttime;
+float outtime;
+int stp, outstep, outtype; // Model step, output step, next output step, output file type
 
 int backswitch; // 0 run HD model forward 1 run the model backward
-float dt; // particle model time step
+float dt, olddt; // particle model time step
 float Eh, Ev; // Eddy viscosity horizontale, vertical
 float minrwdepth; // Minimum depth for using Eddy viscosity
 
@@ -123,7 +125,47 @@ void CUDA_CHECK(cudaError CUDerr)
 	}
 }
 
+void CPUstep()
+{
+	if (totaltime >= hddt*(hdstep - hdstart + 1))//+1 because we only read the next step when time exeed the previous next step
+	{
+		//Read next step
 
+		hdstep++;
+
+		int steptoread = hdstep;
+
+		if (backswitch>0)
+		{
+			steptoread = hdend - hdstep;
+		}
+
+		NextstepCPU(nx,ny, Uo, Vo, hho, Un, Vn, hhn);
+		readHDstep(ncfile, Uvarname, Vvarname, hhvarname, nx, ny, steptoread, lev, Un, Vn, hhn);
+		
+
+	}
+
+	//Interpolate U vel
+	InterpstepCPU( nx, ny, backswitch, hdstep, totaltime, hddt, Ux, Uo, Un);
+
+	//Interpolate V vel
+	InterpstepCPU(nx, ny, backswitch, hdstep, totaltime, hddt, Vx, Vo, Vn);
+
+	//Interpolate Water depth
+	InterpstepCPU(nx, ny, 1.0f, hdstep, totaltime, hddt, hhx, hho, hhn);
+
+	// Reseed random number
+	//not needed here?
+
+	// Update particle position
+	updatepartposCPU(nx, ny, np, dt, Eh, Ux, Vx, hhx, distX, distY, partpos);
+
+	//update Nincel
+
+
+
+}
 
 
 
@@ -176,7 +218,7 @@ int main()
 	//fscanf(fop, "%d\t%*s", &GPUDEV);
 
 	//fscanf(fop, "%d\t%*s", &outtype);
-	//fscanf(fop, "%d\t%*s", &outstep);
+	fscanf(fop, "%f\t%*s", &outtime);
 	//fscanf(fop, "%s\t%*s", &ncoutfile);
 
 	fclose(fop);
@@ -187,8 +229,8 @@ int main()
 	readgridsize(ncfile, Uvarname, Vvarname, hhvarname,nt, nx, ny,xcoord,ycoord);
 
 
-	fprintf(logfile, "\t nx=%d\tny=%d\n",nx,ny);
-	printf("\t nx=%d\tny=%d\n", nx, ny);
+	fprintf(logfile, "\t nx=%d\tny=%d\tnt=%d\n",nx,ny,nt);
+	printf("\t nx=%d\tny=%d\tnt=%d\n", nx, ny, nt);
 	fprintf(logfile, "...done\n");
 	printf("...done\n");
 
@@ -202,6 +244,10 @@ int main()
 	Vn = (float *)malloc(nx*ny*sizeof(float));
 	hho = (float *)malloc(nx*ny*sizeof(float));
 	hhn = (float *)malloc(nx*ny*sizeof(float));
+
+	Ux = (float *)malloc(nx*ny*sizeof(float));
+	Vx = (float *)malloc(nx*ny*sizeof(float));
+	hhx = (float *)malloc(nx*ny*sizeof(float));
 
 	distX = (float *)malloc(nx*ny*sizeof(float));
 	distY = (float *)malloc(nx*ny*sizeof(float));
@@ -220,6 +266,8 @@ int main()
 		for (int j = 0; j<ny; j++)
 		{
 			Nincel[i + j*nx] = 0.0f;
+			cNincel[i + j*nx] = 0.0f;
+			cTincel[i + j*nx] = 0.0f;
 		}
 	}
 	printf("...done\n");
@@ -231,12 +279,18 @@ int main()
 	//outstep=10;
 	stp = 0;//hdstart*hddt/dt;
 	hdstep = hdstart;
-	nextoutstep = outstep + stp;
+	
 	//printf("HD step:%d\n ",hdstep);
 	if (hdend == 0)
 	{
 		hdend = nt - 1;
 	}
+
+	if (outtime == 0.0f)
+	{
+		outtime = hddt*hdend;
+	}
+	nextouttime = outtime;
 
 	int steptoread = hdstep;
 
@@ -244,15 +298,26 @@ int main()
 	{
 		steptoread = hdend - hdstep;
 	}
+
+	
 	//////////////////////////////
 	//Read first step in Hd model
 	///////////////////////////////
 
 	readHDstep(ncfile, Uvarname, Vvarname, hhvarname, nx, ny, steptoread, lev, Uo, Vo, hho);
+	
+	//Also read next step?
+	readHDstep(ncfile, Uvarname, Vvarname, hhvarname, nx, ny, steptoread+1, lev, Un, Vn, hhn);
 
+
+	//Calculate best dt
+	Calcmaxstep(nx, ny, dt, hddt, Uo, Vo, Un, Vn, distX, distY);
+	olddt = dt;
 	printf("Allocating CPU memory for particle position... ");
 	//Initialise particles on CPU
 	partpos = (float4 *)malloc(np*sizeof(float4));
+	d_Rand = (float *)malloc(np*sizeof(float));
+
 	//partpos[50] = make_float4(0.0f, 1.0f, 5.0f, 0.2);
 	printf("...done.\n");
 	//printf("partpos.x=%f", partpos[50].z);
@@ -263,8 +328,8 @@ int main()
 	//Find GPU
 	int nDevices;
 
-	CUDA_CHECK(cudaGetDeviceCount(&nDevices));
-
+	cudaGetDeviceCount(&nDevices);// Crash when using CUDA check?
+	//GPUDEV = -1;
 	if (nDevices > 0)
 	{
 		printf("(%i) Cuda device(s) found!\n",nDevices);
@@ -315,11 +380,47 @@ int main()
 
 
 	//read seed file //calculate seed position on the GPU if available
-	readseedfile(seedfile, np, partpos);
+	
+	readseedfile(seedfile, np, nx, ny, xcoord, ycoord, partpos);
+	//Output seed information for sanity checks
+	writexyz(np, nx, ny, xcoord, ycoord, partpos, "OutSeed_000T.xyz");
+	//writexyz(xp, yp, zp, tp, xl, yl, npart, fileoutn);
+	//create netcdf file
 
-	//read input HD model
 
 	//Run CPU/GPU loop
+
+	
+	if (GPUDEV < 0) //CPU mainloop
+	{
+		printf("Model starting using CPU. dt=%f; \n",dt);
+		printf("step %f of %f\n", totaltime, hddt*hdend);
+		while ( (hddt*hdend-totaltime)>0.0f)
+		{
+			dt = min(dt, nextouttime-totaltime);
+			CPUstep();
+			totaltime=totaltime+dt;
+			stp++;
+
+			if ((nextouttime - totaltime) < 0.001f) // Round off error checking
+			{
+				//WriteoutCPU();
+				char fileoutn[15];
+				sprintf(fileoutn, "Part_%d.xyz", stp);
+				writexyz(np, nx, ny, xcoord, ycoord, partpos, fileoutn);
+				nextouttime = nextouttime + outtime;
+				dt = olddt;
+			}
+
+			
+		}
+		printf("Model Completed\n Total Number of step:%d\t total nuber of outputs steps:%d\n", stp, 0);
+
+	}
+	else //GPU main loop
+	{
+		printf("Model starting using GPU.\n");
+	}
 
 	//Close and clean up
     

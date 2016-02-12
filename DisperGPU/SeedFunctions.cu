@@ -18,7 +18,7 @@
 #include "Header.cuh"
 
 
-extern "C" void readseedfile(char seedfile[],int npart, float4* &partpos)
+extern "C" void readseedfile(char seedfile[],int npart,int nx,int ny, float *xcoord,float *ycoord, float4* &partpos)
 {
 	int seedtype;
 	//Read seed file
@@ -30,7 +30,7 @@ extern "C" void readseedfile(char seedfile[],int npart, float4* &partpos)
 	//3: explicit n x,y,z,t
 
 	float pxo, pyo, pzo, pto;
-
+	float pxi, pyj;
 
 	FILE * fseed;
 	fseed = fopen(seedfile, "r");
@@ -41,9 +41,10 @@ extern "C" void readseedfile(char seedfile[],int npart, float4* &partpos)
 		printf("Point seed\n");
 		//Next line should be pxo,pyo,pzo,pto as x release, yrelease, zrelease(Not used in 2d), t release, (t is the particle age (should be negative for delayed release))
 		fscanf(fseed, "%f,%f,%f,%f\t%*s", &pxo, &pyo, &pzo, &pto);
+		xyz2ijk(nx, ny, xcoord, ycoord, pxi, pyj, pxo, pyo, pzo);
 		for (int np = 0; np < npart; np++)
 		{
-			partpos[np] = make_float4(pxo, pyo, pzo, pto);
+			partpos[np] = make_float4(pxi, pyj, pzo, pto);
 		}
 		break;
 	case 1:
@@ -63,11 +64,14 @@ extern "C" void readseedfile(char seedfile[],int npart, float4* &partpos)
 		break;
 	case 3:
 		printf("explicit release\n");
+		
 		for (int np = 0; np < npart; np++)
 		{
 			fscanf(fseed, "%f,%f,%f,%f\t%*s", &pxo, &pyo, &pzo, &pto);
-			partpos[np] = make_float4(pxo, pyo, pzo, pto);
+			xyz2ijk(nx,ny,xcoord,ycoord,pxi,pyj,pxo,pyo, pzo);
+			partpos[np] = make_float4(pxi, pyj, pzo, pto);
 		}
+
 		break;
 		
 	}
