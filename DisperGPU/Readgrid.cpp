@@ -32,7 +32,7 @@
 
 void handle_error(int status) {
      if (status != NC_NOERR) {
-        fprintf(stderr, "%s\n", nc_strerror(status));
+        fprintf(stderr, "Netcdf %s\n", nc_strerror(status));
 		//fprintf(logfile, "Netcdf: %s\n", nc_strerror(status));
         exit(-1);
         }
@@ -69,6 +69,7 @@ void readgridsize(char ncfile[], char Uvar[], char Vvar[], char hhvar[],int &nt,
 
 
 	//Open NC file
+	printf("Open file\n");
 	status =nc_open(ncfile,0,&ncid);
 	if (status != NC_NOERR) handle_error(status);
 
@@ -318,7 +319,7 @@ void readHDstep(char ncfile[], char Uvar[], char Vvar[], char hhvar[], int nx, i
 	{
 		for (int j = 0; j<ny; j++)
 		{
-			if (Uo[i + j*nx]>10.0f)
+			if (abs(Uo[i + j*nx])>10.0f)
 			{
 				Uo[i + j*nx] = 0.0f;
 			}
@@ -329,7 +330,7 @@ void readHDstep(char ncfile[], char Uvar[], char Vvar[], char hhvar[], int nx, i
 	{
 		for (int j = 0; j<ny; j++)
 		{
-			if (Vo[i + j*nx]>10.0f)
+			if (abs(Vo[i + j*nx])>10.0f)
 			{
 				Vo[i + j*nx] = 0.0f;
 			}
@@ -473,5 +474,29 @@ void updatepartposCPU(int nx, int ny, int np, float dt, float Eh, float *Ux, flo
 		partpos[p] = make_float4(xxx, yyy, zzz, ttt);
 
 
+	}
+}
+
+void calcNincel(int np, int nx,int ny, float4 * partpos,float * Nincel, float * cNincel, float *cTincel)
+{
+	//
+	for (int p = 0; p < np; p++)
+	{
+		int xi = floor(partpos[p].x);
+		int yj = floor(partpos[p].y);
+		Nincel[xi + nx*yj] = Nincel[xi + nx*yj] + 1;
+		cNincel[xi + nx*yj] = cNincel[xi + nx*yj] + 1;
+		cTincel[xi + nx*yj] = cTincel[xi + nx*yj] + partpos[p].w;
+	}
+}
+
+void resetNincel(int nx, int ny, float * Nincel)
+{
+	for (int i = 0; i < nx; i++)
+	{
+		for (int j = 0; j < ny; j++)
+		{
+			Nincel[i + nx*j] = 0.0f;
+		}
 	}
 }

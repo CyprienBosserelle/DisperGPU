@@ -162,7 +162,7 @@ void CPUstep()
 	updatepartposCPU(nx, ny, np, dt, Eh, Ux, Vx, hhx, distX, distY, partpos);
 
 	//update Nincel
-
+	calcNincel(np, nx, ny, partpos, Nincel, cNincel, cTincel);
 
 
 }
@@ -219,13 +219,13 @@ int main()
 
 	//fscanf(fop, "%d\t%*s", &outtype);
 	fscanf(fop, "%f\t%*s", &outtime);
-	//fscanf(fop, "%s\t%*s", &ncoutfile);
+	fscanf(fop, "%s\t%*s", &ncoutfile);
 
 	fclose(fop);
 
 	fprintf(logfile, "Complete\n");
 	fprintf(logfile, "Reading netCDF file : %s...\n", ncfile);
-	printf("Reading netCDF file:%s...\n", ncfile);
+	printf("Reading netCDF file: %s...\n", ncfile);
 	readgridsize(ncfile, Uvarname, Vvarname, hhvarname,nt, nx, ny,xcoord,ycoord);
 
 
@@ -311,7 +311,10 @@ int main()
 
 
 	//Calculate best dt
-	Calcmaxstep(nx, ny, dt, hddt, Uo, Vo, Un, Vn, distX, distY);
+	if (!(dt > 0.0f))// if dt==0.0
+	{
+		Calcmaxstep(nx, ny, dt, hddt, Uo, Vo, Un, Vn, distX, distY);
+	}
 	olddt = dt;
 	printf("Allocating CPU memory for particle position... ");
 	//Initialise particles on CPU
@@ -386,7 +389,7 @@ int main()
 	writexyz(np, nx, ny, xcoord, ycoord, partpos, "OutSeed_000T.xyz");
 	//writexyz(xp, yp, zp, tp, xl, yl, npart, fileoutn);
 	//create netcdf file
-
+	creatncfile(ncoutfile, nx, ny, xcoord, ycoord, 0.0f, Nincel, Nincel, Nincel);
 
 	//Run CPU/GPU loop
 
@@ -408,8 +411,11 @@ int main()
 				char fileoutn[15];
 				sprintf(fileoutn, "Part_%d.xyz", stp);
 				writexyz(np, nx, ny, xcoord, ycoord, partpos, fileoutn);
+				writestep2nc(ncoutfile,nx, ny, totaltime, Nincel, cNincel, cTincel);
 				nextouttime = nextouttime + outtime;
 				dt = olddt;
+				//reset Nincel 
+				resetNincel(nx, ny, Nincel);
 			}
 
 			
