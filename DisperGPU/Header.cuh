@@ -24,5 +24,5 @@ void writexyz(int npart, int nx, int ny, float * xcoord, float * ycoord, float4 
 void calcNincel(int np, int nx, int ny, float4 * partpos, float * Nincel, float * cNincel, float *cTincel);
 void resetNincel(int nx, int ny, float * Nincel);
 
-void creatncfile(char outfile[], int nx, int ny, float *xval, float *yval, float totaltime, float *Nincel, float *cNincel, float *cTincel);
-void writestep2nc(char outfile[], int nx, int ny, float totaltime, float *Nincel, float *cNincel, float * cTincel);
+void creatncfile(char outfile[], int nx, int ny, int np, float *xval, float *yval, float totaltime, float *Nincel, float *cNincel, float *cTincel, float4 * PartPos);
+void writestep2nc(char outfile[], int nx, int ny, int np, float totaltime, float *xval, float *yval, float *Nincel, float *cNincel, float * cTincel, float4 *PartPos);

@@ -445,9 +445,11 @@ void updatepartposCPU(int nx, int ny, int np, float dt, float Eh, float *Ux, flo
 	float Up, Vp, hhp;
 	float ddx, ddy;
 	float Xd, Yd;
+	float rna, rnb, rnc, rnd; // to store random numbers
 
 	//float xxn, yyn;
-
+	/* initialize random seed: */
+	srand(time(NULL));
 
 	for (int p = 0; p < np; p++)
 	{
@@ -455,7 +457,7 @@ void updatepartposCPU(int nx, int ny, int np, float dt, float Eh, float *Ux, flo
 		yyy = partpos[p].y;
 		zzz = partpos[p].z;
 		ttt = partpos[p].w;
-		if (ttt > 0.0)
+		if (ttt >= 0.0)
 		{
 			Up = interp2posCPU(nx, ny, xxx, yyy, Ux);
 			Vp = interp2posCPU(nx, ny, xxx, yyy, Vx);
@@ -463,8 +465,14 @@ void updatepartposCPU(int nx, int ny, int np, float dt, float Eh, float *Ux, flo
 			ddx = interp2posCPU(nx, ny, xxx, yyy, distX);
 			ddy = interp2posCPU(nx, ny, xxx, yyy, distY);
 
-			Xd = sqrtf(-4.0f * Eh*dt*logf(1 - rand() % 1))*cosf(2 * pi*(rand() % 1));
-			Yd = sqrtf(-4.0f * Eh*dt*logf(1 - rand() % 1))*sinf(2 * pi*(rand() % 1));
+			rna = (rand() % 100) / 100.0f;
+			rnb = (rand() % 100) / 100.0f;
+			rnc = (rand() % 100) / 100.0f;
+			rnd = (rand() % 100) / 100.0f;
+			
+
+			Xd = sqrtf(-4.0f * Eh*dt*logf(1.0f - rna))*cosf(2.0f * pi*(rnb));
+			Yd = sqrtf(-4.0f * Eh*dt*logf(1.0f - rnc))*sinf(2.0f * pi*(rnd));
 
 			xxx = xxx + (Up*dt + Xd) / ddx; // Need to add the runge kutta scheme here or not
 			yyy = yyy + (Vp*dt + Yd) / ddy;

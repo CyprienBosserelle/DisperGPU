@@ -51,31 +51,36 @@ void writexyz(int npart,int nx, int ny,float * xcoord, float * ycoord, float4 * 
 	}
 	fclose (ofile);
 }
-void creatncfile(char outfile[], int nx,int ny,float *xval, float *yval,float totaltime,float *Nincel,float *cNincel,float *cTincel)
+void creatncfile(char outfile[], int nx,int ny,int np,float *xval, float *yval,float totaltime,float *Nincel,float *cNincel,float *cTincel,float4 * PartPos)
 {               
 	int status;
-   	int ncid,xx_dim,yy_dim,time_dim,p_dim;
-	size_t nxx,nyy,nnpart;
-	int  var_dimids[3], var2_dimids[2];
+   	int ncid,xx_dim,yy_dim,time_dim,np_dim,px_dim;
+	size_t nxx, nyy, nnpart, npxyztij;
+	int  var_dimids[3], var2_dimids[2], pvar_dimids[3];
 	
-	int Nin_id,cNin_id,cTin_id,time_id,xx_id,yy_id;
+	int Nin_id,cNin_id,cTin_id,time_id,xx_id,yy_id,PPos_id;
 	
+	nnpart = np;
+	npxyztij = 6;
 	nxx=nx;
 	nyy=ny;
 	//nnpart=npart;
 
 	static size_t start[] = {0, 0, 0}; // start at first value 
-    	static size_t count[] = {1, ny, nx};
-		//static size_t pstart[] = {0, 0}; // start at first value 
-   // 	static size_t pcount[] = {1, npart};
+    static size_t count[] = {1, ny, nx};
+	//static size_t pstart[] = {0, 0}; // start at first value 
+    //static size_t pcount[] = {1, npart};
 	static size_t tst[]={0};
 	static size_t xstart[] = {0, 0}; // start at first value 
-    	static size_t xcount[] = {ny, nx};
+    static size_t xcount[] = {ny, nx};
 	
 	static size_t ystart[] = {0, 0}; // start at first value 
-    	static size_t ycount[] = {ny, nx};
-	
+    static size_t ycount[] = {ny, nx};
 
+	static size_t pstart[] = {0, 0, 0};
+	static size_t pcount[] = { 1, 1, 6 };
+	
+	
 
 
 
@@ -86,14 +91,15 @@ void creatncfile(char outfile[], int nx,int ny,float *xval, float *yval,float to
 	
 	status = nc_def_dim(ncid, "x", nxx, &xx_dim);
 	status = nc_def_dim(ncid, "y", nyy, &yy_dim);
-	//status = nc_def_dim(ncid, "npart",nnpart,&p_dim);
+	status = nc_def_dim(ncid, "partID",nnpart,&np_dim);
+	status = nc_def_dim(ncid, "xyztij", npxyztij, &px_dim);
 	status = nc_def_dim(ncid, "time", NC_UNLIMITED, &time_dim);
 	int tdim[]={time_dim};
 	int xdim[]={xx_dim};
 	int ydim[]={yy_dim};
-	//int pdim[2];
-	//pdim[0]=time_dim;
-	//pdim[1]=p_dim;
+	int npdim[] = {np_dim};
+	int pxdim[] = { px_dim };
+	
 	//define variables: Name, Type,...
 	var_dimids[0] = time_dim;
     var_dimids[1] = yy_dim;
@@ -101,6 +107,11 @@ void creatncfile(char outfile[], int nx,int ny,float *xval, float *yval,float to
 	
 	var2_dimids[0] = yy_dim;
     var2_dimids[1] = xx_dim;
+
+	pvar_dimids[0] = time_dim;
+	pvar_dimids[1] = np_dim;
+	pvar_dimids[2] = px_dim;
+
 
 	
    	status = nc_def_var (ncid, "time", NC_FLOAT,1,tdim, &time_id);
@@ -113,6 +124,8 @@ void creatncfile(char outfile[], int nx,int ny,float *xval, float *yval,float to
     status = nc_def_var (ncid, "cNincel", NC_FLOAT, 3, var_dimids, &cNin_id);
     status = nc_def_var (ncid, "cTincel", NC_FLOAT, 3, var_dimids, &cTin_id);
     
+	status = nc_def_var(ncid, "PartPos", NC_FLOAT, 3, pvar_dimids, &PPos_id);
+
 	//put attriute: assign attibute values
 	//nc_put_att
 
@@ -130,18 +143,37 @@ void creatncfile(char outfile[], int nx,int ny,float *xval, float *yval,float to
 	status = nc_put_vara_float(ncid, Nin_id, start, count, Nincel);
 	status = nc_put_vara_float(ncid, cNin_id, start, count, cNincel);
 	status = nc_put_vara_float(ncid, cTin_id, start, count, cTincel);
-	
+	for (int p = 0; p < np; p++)
+	{
+		
+		pstart[0] = 0;
+		pstart[1] = p;
+		pstart[2] = 0;
+
+		float realx, realy;
+		float xi, yj;
+
+		xi = PartPos[p].x;
+		yj = PartPos[p].y;
+
+		realx = interp2posCPU(nx, ny, xi, yj, xval);
+		realy = interp2posCPU(nx, ny, xi, yj, yval);
+
+		float ppp[] = { realx, realy, PartPos[p].z, PartPos[p].w, xi, yj };
+
+		status = nc_put_vara_float(ncid, PPos_id, pstart, pcount, ppp);
+	}
 
 	//close and save new file
 	status = nc_close(ncid);  
 }
 
-void writestep2nc(char outfile[], int nx,int ny,float totaltime,float *Nincel,float *cNincel,float * cTincel)
+void writestep2nc(char outfile[], int nx,int ny,int np, float totaltime,float *xval, float *yval, float *Nincel,float *cNincel,float * cTincel, float4 *PartPos)
 {
 	int status;
    	int ncid,time_dim,recid;
 	size_t nxx,nyy;
-	int Nincel_id,cNincel_id,cTincel_id,time_id;
+	int Nincel_id, cNincel_id, cTincel_id, time_id, PPos_id;
 	static size_t start[] = {0, 0, 0}; // start at first value 
     	static size_t count[] = {1, ny, nx};
  	//static size_t pstart[] = {0, 0}; // start at first value 
@@ -153,6 +185,9 @@ void writestep2nc(char outfile[], int nx,int ny,float totaltime,float *Nincel,fl
 
 	
 	static size_t nrec;
+
+	static size_t pstart[] = { 0, 0, 0 };
+	static size_t pcount[] = { 1, 1, 6 };
 	status = nc_open(outfile, NC_WRITE, &ncid);
 	
 	//read id from time dimension
@@ -166,6 +201,7 @@ void writestep2nc(char outfile[], int nx,int ny,float totaltime,float *Nincel,fl
 	status = nc_inq_varid(ncid, "Nincel", &Nincel_id);
 	status = nc_inq_varid(ncid, "cNincel", &cNincel_id);
 	status = nc_inq_varid(ncid, "cTincel", &cTincel_id);
+	status = nc_inq_varid(ncid, "PartPos", &PPos_id);
 	
 	
 	
@@ -180,7 +216,27 @@ void writestep2nc(char outfile[], int nx,int ny,float totaltime,float *Nincel,fl
 	status = nc_put_vara_float(ncid, cNincel_id, start, count, cNincel);
 	status = nc_put_vara_float(ncid, cTincel_id, start, count, cTincel);
 	
+	for (int p = 0; p < np; p++)
+	{
+		pstart[0] = nrec;
+		pstart[1] = p;
+		pstart[2] = 0;
 	
+		
+
+		float realx, realy;
+		float xi, yj;
+
+		xi = PartPos[p].x;
+		yj = PartPos[p].y;
+
+		realx = interp2posCPU(nx, ny, xi, yj, xval);
+		realy = interp2posCPU(nx, ny, xi, yj, yval);
+
+		float ppp[] = { realx, realy, PartPos[p].z, PartPos[p].w, xi, yj };
+
+		status = nc_put_vara_float(ncid, PPos_id, pstart, pcount, ppp);
+	}
 
 	//close and save
 	status = nc_close(ncid);

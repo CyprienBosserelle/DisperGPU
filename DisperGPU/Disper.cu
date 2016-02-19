@@ -389,7 +389,9 @@ int main()
 	writexyz(np, nx, ny, xcoord, ycoord, partpos, "OutSeed_000T.xyz");
 	//writexyz(xp, yp, zp, tp, xl, yl, npart, fileoutn);
 	//create netcdf file
-	creatncfile(ncoutfile, nx, ny, xcoord, ycoord, 0.0f, Nincel, Nincel, Nincel);
+	
+	creatncfile(ncoutfile, nx, ny, np, xcoord, ycoord, 0.0f, Nincel, cNincel, cTincel, partpos);
+
 
 	//Run CPU/GPU loop
 
@@ -411,7 +413,8 @@ int main()
 				char fileoutn[15];
 				sprintf(fileoutn, "Part_%d.xyz", stp);
 				writexyz(np, nx, ny, xcoord, ycoord, partpos, fileoutn);
-				writestep2nc(ncoutfile,nx, ny, totaltime, Nincel, cNincel, cTincel);
+				//writestep2nc(ncoutfile, nx, ny, totaltime, Nincel, cNincel, cTincel);
+				writestep2nc(ncoutfile, nx, ny, np, totaltime, xcoord, ycoord, Nincel, cNincel, cTincel, partpos);
 				nextouttime = nextouttime + outtime;
 				dt = olddt;
 				//reset Nincel 

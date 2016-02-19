@@ -67,7 +67,7 @@ extern "C" void readseedfile(char seedfile[],int npart,int nx,int ny, float *xco
 		
 		for (int np = 0; np < npart; np++)
 		{
-			fscanf(fseed, "%f,%f,%f,%f\t%*s", &pxo, &pyo, &pzo, &pto);
+			fscanf(fseed, "%f,%f,%f,%f", &pxo, &pyo, &pzo, &pto);
 			xyz2ijk(nx,ny,xcoord,ycoord,pxi,pyj,pxo,pyo, pzo);
 			partpos[np] = make_float4(pxi, pyj, pzo, pto);
 		}
