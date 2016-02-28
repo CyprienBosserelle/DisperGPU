@@ -485,7 +485,7 @@ void updatepartposCPU(int nx, int ny, int np, float dt, float Eh, float *Ux, flo
 	}
 }
 
-void calcNincel(int np, int nx,int ny, float4 * partpos,float * Nincel, float * cNincel, float *cTincel)
+void calcNincelCPU(int np, int nx,int ny, float4 * partpos,float * Nincel, float * cNincel, float *cTincel)
 {
 	//
 	for (int p = 0; p < np; p++)
@@ -498,7 +498,7 @@ void calcNincel(int np, int nx,int ny, float4 * partpos,float * Nincel, float * 
 	}
 }
 
-void resetNincel(int nx, int ny, float * Nincel)
+void resetNincelCPU(int nx, int ny, float * Nincel)
 {
 	for (int i = 0; i < nx; i++)
 	{

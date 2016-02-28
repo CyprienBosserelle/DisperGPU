@@ -124,6 +124,77 @@ void CUDA_CHECK(cudaError CUDerr)
 
 	}
 }
+void GPUstep()
+{
+	dim3 blockDimHD(16, 16, 1);
+	//dim3 gridDimHD(ceil(max(netau,netav)*max(nxiu,nxiv) / (float)blockDimHD.x), 1, 1);
+	dim3 gridDimHD((int)ceil((float)nx / (float)blockDimHD.x), (int)ceil((float)ny / (float)blockDimHD.y), 1);
+
+	if (totaltime >= hddt*(hdstep - hdstart + 1))//+1 because we only read the next step when time exeed the previous next step
+	{
+		//Read next step
+
+		hdstep++;
+
+		int steptoread = hdstep;
+
+		if (backswitch>0)
+		{
+			steptoread = hdend - hdstep;
+		}
+
+		NextHDstep <<<gridDimHD, blockDimHD, 0 >>>(nx, ny, Uo_g, Un_g);
+		CUDA_CHECK(cudaThreadSynchronize());
+
+		NextHDstep <<<gridDimHD, blockDimHD, 0 >>>(nx, ny, Vo_g, Vn_g);
+		CUDA_CHECK(cudaThreadSynchronize());
+
+		
+		readHDstep(ncfile, Uvarname, Vvarname, hhvarname, nx, ny, steptoread, lev, Un, Vn, hhn);
+		CUDA_CHECK(cudaMemcpy(Un_g, Un, nx*ny*sizeof(float), cudaMemcpyHostToDevice));
+		CUDA_CHECK(cudaMemcpy(Vn_g, Vn, nx*ny*sizeof(float), cudaMemcpyHostToDevice));
+
+	}
+	ResetNincel <<<gridDimHD, blockDimHD, 0 >>>(nx, ny, Nincel_g);
+	CUDA_CHECK(cudaThreadSynchronize());
+
+	//int interpstep = hdstep - hdstart + 1;
+	//InterpstepCPU(nx, ny, backswitch, hdstep, totaltime, hddt, Ux, Uo, Un);
+	HD_interp <<< gridDimHD, blockDimHD, 0 >>>(nx, ny, stp, backswitch, interpstep, dt, hddt, Uo_g, Un_g, Ux_g);
+	CUDA_CHECK(cudaThreadSynchronize());
+
+	HD_interp << <gridDimHD, blockDimHD, 0 >> >(nx, ny, stp, backswitch, interpstep, dt, hddt/*,Vmask_g*/, Vo_g, Vn_g, Vx_g);
+	CUDA_CHECK(cudaThreadSynchronize());
+
+	CUDA_CHECK(cudaMemcpyToArray(Ux_gp, 0, 0, Ux_g, data_nu* sizeof(float), cudaMemcpyDeviceToDevice));
+	CUDA_CHECK(cudaMemcpyToArray(Vx_gp, 0, 0, Vx_g, data_nv* sizeof(float), cudaMemcpyDeviceToDevice));
+
+	//Generate some random numbers
+	// Set seed 
+	//curandSetPseudoRandomGeneratorSeed(gen, SEED);
+	// Generate n floats on device 
+	curandGenerateUniform(gen, d_Rand, np);
+
+
+	//run the model
+	//int nbblocks=npart/256;
+	dim3 blockDim(256, 1, 1);
+	dim3 gridDim(np / blockDim.x, 1, 1);
+
+	//Calculate particle step
+
+	updatepartpos << <gridDim, blockDim, 0 >> >(np, dt, Eh, d_Rand, xl_g, yl_g, zp_g, tp_g);
+	CUDA_CHECK(cudaThreadSynchronize());
+
+	ij2lonlat << <gridDim, blockDim, 0 >> >(np, xl_g, yl_g, xp_g, yp_g);
+	CUDA_CHECK(cudaThreadSynchronize());
+
+	CalcNincel << <gridDim, blockDim, 0 >> >(np, nxiu, netau, xl_g, yl_g, tp_g, Nincel_g, cNincel_g, cTincel_g);
+	CUDA_CHECK(cudaThreadSynchronize());
+}
+
+
+
 
 void CPUstep()
 {
@@ -162,7 +233,7 @@ void CPUstep()
 	updatepartposCPU(nx, ny, np, dt, Eh, Ux, Vx, hhx, distX, distY, partpos);
 
 	//update Nincel
-	calcNincel(np, nx, ny, partpos, Nincel, cNincel, cTincel);
+	calcNincelCPU(np, nx, ny, partpos, Nincel, cNincel, cTincel);
 
 
 }
@@ -377,7 +448,104 @@ int main()
 
 		CUDA_CHECK(cudaMalloc((void **)&d_Rand, np*sizeof(float)));
 
+		printf("Transfert vectors to GPU memory... ");
+		CUDA_CHECK(cudaMemcpy(Uo_g, Uo, nx*ny*sizeof(float), cudaMemcpyHostToDevice));
+		CUDA_CHECK(cudaMemcpy(Un_g, Uo, nx*ny*sizeof(float), cudaMemcpyHostToDevice));
+		CUDA_CHECK(cudaMemcpy(Ux_g, Uo, nx*ny*sizeof(float), cudaMemcpyHostToDevice));
+
+		CUDA_CHECK(cudaMemcpy(Vo_g, Vo, nx*ny*sizeof(float), cudaMemcpyHostToDevice));
+		CUDA_CHECK(cudaMemcpy(Vn_g, Vo, nx*ny*sizeof(float), cudaMemcpyHostToDevice));
+		CUDA_CHECK(cudaMemcpy(Vx_g, Vo, nx*ny*sizeof(float), cudaMemcpyHostToDevice));
+
+		CUDA_CHECK(cudaMemcpy(Nincel_g, Nincel, nx*ny*sizeof(float), cudaMemcpyHostToDevice));
+		CUDA_CHECK(cudaMemcpy(cNincel_g, Nincel, nx*ny*sizeof(float), cudaMemcpyHostToDevice));
+		CUDA_CHECK(cudaMemcpy(cTincel_g, Nincel, nx*ny*sizeof(float), cudaMemcpyHostToDevice));
+
 		
+
+		//CUDA_CHECK(cudaMemcpy(partpos_g, partpos, np*sizeof(float4), cudaMemcpyHostToDevice));
+		//done later
+
+		// Loading random number generator
+		curandCreateGenerator(&gen, CURAND_RNG_PSEUDO_DEFAULT);
+
+		CUDA_CHECK(cudaMalloc((void **)&d_Rand, np*sizeof(float)));
+
+		printf(" ...done\n");
+
+		printf("Create textures on GPU memory... ");
+		// Copy velocity arrays
+		CUDA_CHECK(cudaMallocArray(&Ux_gp, &channelDescU, nx, ny));
+		CUDA_CHECK(cudaMallocArray(&Vx_gp, &channelDescV, nx, ny));
+
+		CUDA_CHECK(cudaMemcpyToArray(Ux_gp, 0, 0, Uo, nx*ny* sizeof(float), cudaMemcpyHostToDevice));
+		CUDA_CHECK(cudaMemcpyToArray(Vx_gp, 0, 0, Vo, nx*ny* sizeof(float), cudaMemcpyHostToDevice));
+
+		texU.addressMode[0] = cudaAddressModeWrap;
+		texU.addressMode[1] = cudaAddressModeWrap;
+		texU.filterMode = cudaFilterModeLinear;
+		texU.normalized = false;
+
+
+		CUDA_CHECK(cudaBindTextureToArray(texU, Ux_gp, channelDescU));
+
+		texV.addressMode[0] = cudaAddressModeWrap;
+		texV.addressMode[1] = cudaAddressModeWrap;
+		texV.filterMode = cudaFilterModeLinear;
+		texV.normalized = false;
+
+		CUDA_CHECK(cudaBindTextureToArray(texV, Vx_gp, channelDescV));
+
+		CUDA_CHECK(cudaMallocArray(&distX_gp, &channelDescdX, nx, ny));
+		//CUDA_CHECK( cudaMallocArray( &distXV_gp, &channelDescdXV, netav, nxiv ));
+		//CUDA_CHECK( cudaMallocArray( &distYU_gp, &channelDescdYU, netau, nxiu ));
+		CUDA_CHECK(cudaMallocArray(&distY_gp, &channelDescdY, nx, ny));
+
+		CUDA_CHECK(cudaMallocArray(&xcoord_gp, &channelDescxcoord, nx, ny));
+		CUDA_CHECK(cudaMallocArray(&ycoord_gp, &channelDescycoord, nx, ny));
+		//CUDA_CHECK( cudaMallocArray( &lon_vgp, &channelDesclonv, netav, nxiv ));
+		//CUDA_CHECK( cudaMallocArray( &lat_vgp, &channelDesclatv, netav, nxiv ));
+
+		CUDA_CHECK(cudaMemcpyToArray(distX_gp, 0, 0, distX, nx*ny* sizeof(float), cudaMemcpyHostToDevice));
+		//CUDA_CHECK( cudaMemcpyToArray(distYU_gp, 0, 0, distYU, netau*nxiu* sizeof(float), cudaMemcpyHostToDevice));
+		//CUDA_CHECK( cudaMemcpyToArray(distXV_gp, 0, 0, distXV, netav*nxiv* sizeof(float), cudaMemcpyHostToDevice));
+		CUDA_CHECK(cudaMemcpyToArray(distY_gp, 0, 0, distY, nx*ny* sizeof(float), cudaMemcpyHostToDevice));
+		CUDA_CHECK(cudaMemcpyToArray(xcoord_gp, 0, 0, xcoord, nx*ny* sizeof(float), cudaMemcpyHostToDevice));
+		CUDA_CHECK(cudaMemcpyToArray(ycoord_gp, 0, 0, ycoord, nx*ny* sizeof(float), cudaMemcpyHostToDevice));
+		//CUDA_CHECK( cudaMemcpyToArray(lon_vgp, 0, 0, lon_v, netav*nxiv* sizeof(float), cudaMemcpyHostToDevice));
+		//CUDA_CHECK( cudaMemcpyToArray(lat_vgp, 0, 0, lat_v, netav*nxiv* sizeof(float), cudaMemcpyHostToDevice));
+
+		texlonu.addressMode[0] = cudaAddressModeWrap;
+		texlonu.addressMode[1] = cudaAddressModeWrap;
+		texlonu.filterMode = cudaFilterModeLinear;
+		texlonu.normalized = false;
+
+		CUDA_CHECK(cudaBindTextureToArray(texlonu, xcoord_gp, channelDescxcoord));
+
+		texlatu.addressMode[0] = cudaAddressModeWrap;
+		texlatu.addressMode[1] = cudaAddressModeWrap;
+		texlatu.filterMode = cudaFilterModeLinear;
+		texlatu.normalized = false;
+
+		CUDA_CHECK(cudaBindTextureToArray(texlatu, ycoord_gp, channelDescycoord));
+
+		texdXU.addressMode[0] = cudaAddressModeWrap;
+		texdXU.addressMode[1] = cudaAddressModeWrap;
+		texdXU.filterMode = cudaFilterModeLinear;
+		texdXU.normalized = false;
+
+		CUDA_CHECK(cudaBindTextureToArray(texdXU, distX_gp, channelDescdX));
+
+		texdYV.addressMode[0] = cudaAddressModeWrap;
+		texdYV.addressMode[1] = cudaAddressModeWrap;
+		texdYV.filterMode = cudaFilterModeLinear;
+		texdYV.normalized = false;
+
+		CUDA_CHECK(cudaBindTextureToArray(texdYV, distY_gp, channelDescdY));
+
+		printf(" ...done\n");
+
+
 
 	}
 
@@ -428,7 +596,39 @@ int main()
 	}
 	else //GPU main loop
 	{
+		//Initial particle position transfert to GPU
+		CUDA_CHECK(cudaMemcpy(partpos_g, partpos, np*sizeof(float4), cudaMemcpyHostToDevice));
+
 		printf("Model starting using GPU.\n");
+		while ((hddt*hdend - totaltime)>0.0f)
+		{
+			dt = min(dt, nextouttime - totaltime);
+			GPUstep();
+			totaltime = totaltime + dt;
+			stp++;
+
+			if ((nextouttime - totaltime) < 0.001f) // Round off error checking
+			{
+				//WriteoutCPU();
+				char fileoutn[15];
+				sprintf(fileoutn, "Part_%d.xyz", stp);
+				//writexyz(np, nx, ny, xcoord, ycoord, partpos, fileoutn);
+				//writestep2nc(ncoutfile, nx, ny, totaltime, Nincel, cNincel, cTincel);
+				CUDA_CHECK(cudaMemcpy(partpos, partpos_g, np*sizeof(float4), cudaMemcpyDeviceToHost));
+				CUDA_CHECK(cudaMemcpy(Nincel, Nincel_g, nx*ny*sizeof(float), cudaMemcpyDeviceToHost));
+				CUDA_CHECK(cudaMemcpy(cNincel, cNincel_g, nx*ny*sizeof(float), cudaMemcpyDeviceToHost));
+				CUDA_CHECK(cudaMemcpy(cTincel, cTincel_g, nx*ny*sizeof(float), cudaMemcpyDeviceToHost));
+
+
+				writestep2nc(ncoutfile, nx, ny, np, totaltime, xcoord, ycoord, Nincel, cNincel, cTincel, partpos);
+				nextouttime = nextouttime + outtime;
+				dt = olddt;
+				//reset Nincel 
+				resetNincel(nx, ny, Nincel);
+			}
+
+
+		}
 	}
 
 	//Close and clean up
