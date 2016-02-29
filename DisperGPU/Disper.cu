@@ -133,7 +133,7 @@ void GPUstep()
 	if (totaltime >= hddt*(hdstep - hdstart + 1))//+1 because we only read the next step when time exeed the previous next step
 	{
 		//Read next step
-
+		printf("Reading Next step\n");
 		hdstep++;
 
 		int steptoread = hdstep;
@@ -143,39 +143,54 @@ void GPUstep()
 			steptoread = hdend - hdstep;
 		}
 
-		NextHDstep <<<gridDimHD, blockDimHD, 0 >>>(nx, ny, Uo_g, Un_g);
-		CUDA_CHECK(cudaThreadSynchronize());
+		NextHDstep<<<gridDimHD, blockDimHD, 0 >>>(nx, ny, Uo_g, Un_g);
+		CUDA_CHECK(cudaDeviceSynchronize());
 
-		NextHDstep <<<gridDimHD, blockDimHD, 0 >>>(nx, ny, Vo_g, Vn_g);
-		CUDA_CHECK(cudaThreadSynchronize());
+		NextHDstep<<<gridDimHD, blockDimHD, 0 >>>(nx, ny, Vo_g, Vn_g);
+		CUDA_CHECK(cudaDeviceSynchronize());
+
+		//NextHDstep<<<gridDimHD, blockDimHD, 0 >>>(nx, ny, hho_g, hhn_g);
+		//CUDA_CHECK(cudaDeviceSynchronize());
 
 		
 		readHDstep(ncfile, Uvarname, Vvarname, hhvarname, nx, ny, steptoread, lev, Un, Vn, hhn);
 		CUDA_CHECK(cudaMemcpy(Un_g, Un, nx*ny*sizeof(float), cudaMemcpyHostToDevice));
 		CUDA_CHECK(cudaMemcpy(Vn_g, Vn, nx*ny*sizeof(float), cudaMemcpyHostToDevice));
+		//CUDA_CHECK(cudaMemcpy(hhn_g, hhn, nx*ny*sizeof(float), cudaMemcpyHostToDevice));
 
 	}
-	ResetNincel <<<gridDimHD, blockDimHD, 0 >>>(nx, ny, Nincel_g);
-	CUDA_CHECK(cudaThreadSynchronize());
+	//printf("Run GPU step\n");
 
+	//printf("Nincel Reset\n");
+	ResetNincel<<<gridDimHD, blockDimHD, 0 >>>(nx, ny, Nincel_g);
+	CUDA_CHECK(cudaDeviceSynchronize());
+
+	//printf("interp HD\n");
 	//int interpstep = hdstep - hdstart + 1;
 	//InterpstepCPU(nx, ny, backswitch, hdstep, totaltime, hddt, Ux, Uo, Un);
-	HD_interp <<< gridDimHD, blockDimHD, 0 >>>(nx, ny, stp, backswitch, interpstep, dt, hddt, Uo_g, Un_g, Ux_g);
-	CUDA_CHECK(cudaThreadSynchronize());
+	HD_interp <<< gridDimHD, blockDimHD, 0 >>>(nx, ny, backswitch, hdstep, totaltime, hddt, Uo_g, Un_g, Ux_g);
+	CUDA_CHECK(cudaDeviceSynchronize());
 
-	HD_interp << <gridDimHD, blockDimHD, 0 >> >(nx, ny, stp, backswitch, interpstep, dt, hddt/*,Vmask_g*/, Vo_g, Vn_g, Vx_g);
-	CUDA_CHECK(cudaThreadSynchronize());
+	HD_interp <<<gridDimHD, blockDimHD, 0 >>>(nx, ny, backswitch, hdstep, totaltime, hddt, Vo_g, Vn_g, Vx_g);
+	CUDA_CHECK(cudaDeviceSynchronize());
 
-	CUDA_CHECK(cudaMemcpyToArray(Ux_gp, 0, 0, Ux_g, data_nu* sizeof(float), cudaMemcpyDeviceToDevice));
-	CUDA_CHECK(cudaMemcpyToArray(Vx_gp, 0, 0, Vx_g, data_nv* sizeof(float), cudaMemcpyDeviceToDevice));
+	//HD_interp <<<gridDimHD, blockDimHD, 0 >>>(nx, ny, backswitch, hdstep, totaltime, hddt, hho_g, hhn_g, hhx_g);
+	//CUDA_CHECK(cudaDeviceSynchronize());
 
+
+	//printf("Mem copy to array\n");
+	CUDA_CHECK(cudaMemcpyToArray(Ux_gp, 0, 0, Ux_g, nx*ny* sizeof(float), cudaMemcpyDeviceToDevice));
+	CUDA_CHECK(cudaMemcpyToArray(Vx_gp, 0, 0, Vx_g, nx*ny* sizeof(float), cudaMemcpyDeviceToDevice));
+	//CUDA_CHECK(cudaMemcpyToArray(hhx_gp, 0, 0, hhx_g, nx*ny* sizeof(float), cudaMemcpyDeviceToDevice));
 	//Generate some random numbers
 	// Set seed 
 	//curandSetPseudoRandomGeneratorSeed(gen, SEED);
 	// Generate n floats on device 
+
+	//printf("Rnd gen\n");
 	curandGenerateUniform(gen, d_Rand, np);
 
-
+	//printf("Part position\n");
 	//run the model
 	//int nbblocks=npart/256;
 	dim3 blockDim(256, 1, 1);
@@ -183,14 +198,14 @@ void GPUstep()
 
 	//Calculate particle step
 
-	updatepartpos << <gridDim, blockDim, 0 >> >(np, dt, Eh, d_Rand, xl_g, yl_g, zp_g, tp_g);
-	CUDA_CHECK(cudaThreadSynchronize());
+	updatepartpos <<<gridDim, blockDim, 0 >>>(np, dt, Eh, d_Rand, partpos_g);
+	CUDA_CHECK(cudaDeviceSynchronize());
 
-	ij2lonlat << <gridDim, blockDim, 0 >> >(np, xl_g, yl_g, xp_g, yp_g);
-	CUDA_CHECK(cudaThreadSynchronize());
-
-	CalcNincel << <gridDim, blockDim, 0 >> >(np, nxiu, netau, xl_g, yl_g, tp_g, Nincel_g, cNincel_g, cTincel_g);
-	CUDA_CHECK(cudaThreadSynchronize());
+	//ij2lonlat <<<gridDim, blockDim, 0 >> >(np, xl_g, yl_g, xp_g, yp_g);
+	//CUDA_CHECK(cudaThreadSynchronize());
+	//printf("Calc Nincel\n");
+	CalcNincel <<<gridDim, blockDim, 0 >>>(np, nx, ny, partpos_g, Nincel_g, cNincel_g, cTincel_g);
+	CUDA_CHECK(cudaDeviceSynchronize());
 }
 
 
@@ -426,7 +441,7 @@ int main()
 		//If GPU available then copy set up GPU mem
 		
 
-		CUDA_CHECK(cudaMalloc((void **)&partpos_g, sizeof(float4)));
+		CUDA_CHECK(cudaMalloc((void **)&partpos_g, np*sizeof(float4)));
 
 		CUDA_CHECK(cudaMalloc((void **)&Uo_g, nx*ny* sizeof(float)));
 		CUDA_CHECK(cudaMalloc((void **)&Un_g, nx*ny* sizeof(float)));
@@ -461,7 +476,7 @@ int main()
 		CUDA_CHECK(cudaMemcpy(cNincel_g, Nincel, nx*ny*sizeof(float), cudaMemcpyHostToDevice));
 		CUDA_CHECK(cudaMemcpy(cTincel_g, Nincel, nx*ny*sizeof(float), cudaMemcpyHostToDevice));
 
-		
+		CUDA_CHECK(cudaMemcpy(partpos_g, partpos, np*sizeof(float4), cudaMemcpyHostToDevice));
 
 		//CUDA_CHECK(cudaMemcpy(partpos_g, partpos, np*sizeof(float4), cudaMemcpyHostToDevice));
 		//done later
@@ -586,7 +601,7 @@ int main()
 				nextouttime = nextouttime + outtime;
 				dt = olddt;
 				//reset Nincel 
-				resetNincel(nx, ny, Nincel);
+				resetNincelCPU(nx, ny, Nincel);
 			}
 
 			
@@ -597,6 +612,7 @@ int main()
 	else //GPU main loop
 	{
 		//Initial particle position transfert to GPU
+		printf("Copy Particle position to GPU.\n");
 		CUDA_CHECK(cudaMemcpy(partpos_g, partpos, np*sizeof(float4), cudaMemcpyHostToDevice));
 
 		printf("Model starting using GPU.\n");
@@ -624,7 +640,7 @@ int main()
 				nextouttime = nextouttime + outtime;
 				dt = olddt;
 				//reset Nincel 
-				resetNincel(nx, ny, Nincel);
+				resetNincelCPU(nx, ny, Nincel);
 			}
 
 

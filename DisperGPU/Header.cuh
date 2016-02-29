@@ -21,8 +21,8 @@ void xyz2ijk( int nx, int ny, float * xcoord, float * ycoord, float &xi, float &
 bool isinquad(float v1x, float v1y, float v2x, float v2y, float v3x, float v3y, float v4x, float v4y, float px, float py);
 extern "C" void readseedfile(char seedfile[], int npart, int nx, int ny, float *xcoord, float *ycoord, float4* &partpos);
 void writexyz(int npart, int nx, int ny, float * xcoord, float * ycoord, float4 * partpos, char outfile[]);
-void calcNincel(int np, int nx, int ny, float4 * partpos, float * Nincel, float * cNincel, float *cTincel);
-void resetNincel(int nx, int ny, float * Nincel);
+void calcNincelCPU(int np, int nx, int ny, float4 * partpos, float * Nincel, float * cNincel, float *cTincel);
+void resetNincelCPU(int nx, int ny, float * Nincel);
 
 void creatncfile(char outfile[], int nx, int ny, int np, float *xval, float *yval, float totaltime, float *Nincel, float *cNincel, float *cTincel, float4 * PartPos);
 void writestep2nc(char outfile[], int nx, int ny, int np, float totaltime, float *xval, float *yval, float *Nincel, float *cNincel, float * cTincel, float4 *PartPos);

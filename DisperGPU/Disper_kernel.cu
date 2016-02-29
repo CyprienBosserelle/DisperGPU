@@ -28,7 +28,7 @@ texture<float, 2, cudaReadModeElementType> texdYV;
 
 
 
-__global__ void HD_interp(int nx, int ny, int stp, int backswitch, int nhdstp, float dt, float hddt/*,float *Umask*/, float * Uold, float * Unew, float * UU)
+__global__ void HD_interp(int nx, int ny, int backswitch, int nhdstp, float totaltime, float hddt, float * Uold, float * Unew, float * UU)
 {
 	unsigned int ix = blockIdx.x*blockDim.x + threadIdx.x;
 	unsigned int iy = blockIdx.y*blockDim.y + threadIdx.y;
@@ -55,7 +55,7 @@ __global__ void HD_interp(int nx, int ny, int stp, int backswitch, int nhdstp, f
 		Uxo[tx][ty] = fac*Uold[ix + nx*iy]/**Ums[tx]*/;
 		Uxn[tx][ty] = fac*Unew[ix + nx*iy]/**Ums[tx]*/;
 
-		UU[ix + nx*iy] = Uxo[tx][ty] + (stp*dt - hddt*nhdstp)*(Uxn[tx][ty] - Uxo[tx][ty]) / hddt;
+		UU[ix + nx*iy] = Uxo[tx][ty] + (totaltime - hddt*nhdstp)*(Uxn[tx][ty] - Uxo[tx][ty]) / hddt;
 	}
 }
 
@@ -87,7 +87,7 @@ __global__ void ResetNincel(int nx, int ny, float *Nincel)
 	}
 }
 
-__global__ void updatepartpos(int npart, float dt, float Eh, float * dd_rand, float *xx, float *yy, float *zz, float *tt)
+__global__ void updatepartpos(int npart, float dt, float Eh, float * dd_rand, float4 * partpos)
 {
 	int i = blockIdx.x * blockDim.x * blockDim.y + blockDim.x * threadIdx.y + threadIdx.x;
 
@@ -99,10 +99,13 @@ __global__ void updatepartpos(int npart, float dt, float Eh, float * dd_rand, fl
 	float distu, distv;
 
 
-	float xxx, yyy, ttt;
-	xxx = xx[i];
-	yyy = yy[i];
-	ttt = tt[i];
+	float xxx, yyy, zzz, ttt;
+
+	xxx = partpos[i].x; //should be in i,j
+	yyy = partpos[i].y;
+	zzz = partpos[i].z;
+	ttt = partpos[i].w;
+	
 
 	if (ttt >= 0.0f)
 	{
@@ -122,12 +125,13 @@ __global__ void updatepartpos(int npart, float dt, float Eh, float * dd_rand, fl
 			Xd = sqrtf(-4 * Eh*dt*logf(1 - dd_rand[i]))*cosf(2 * pi*dd_rand[npart - i]);
 			Yd = sqrtf(-4 * Eh*dt*logf(1 - dd_rand[i]))*sinf(2 * pi*dd_rand[npart - i]);
 
-			xx[i] = xxx + (Ux*dt + Xd) / distu; // Need to add the runge kutta scheme here or not
-			yy[i] = yyy + (Vx*dt + Yd) / distv;
+			xxx = xxx + (Ux*dt + Xd) / distu; // Need to add the runge kutta scheme here or not
+			yyy = yyy + (Vx*dt + Yd) / distv;
 		}
 	}
 
-	tt[i] = ttt + dt;
+	ttt = ttt + dt;
+	partpos[i] = make_float4(xxx, yyy, zzz, ttt);
 
 
 
@@ -153,15 +157,15 @@ __global__ void ij2lonlat(int npart, float * xx, float *yy, float *xp, float *yp
 
 }
 
-__global__ void CalcNincel(int npart, int nx, int ny, float *xl, float * yl, float *tt, float *Nincel, float *cNincel, float *cTincel)
+__global__ void CalcNincel(int npart, int nx, int ny, float4* partpos, float *Nincel, float *cNincel, float *cTincel)
 {
 	int i = blockIdx.x * blockDim.x * blockDim.y + blockDim.x * threadIdx.y + threadIdx.x;
 	float xxx, yyy, ttt;
 	int ix, iy;
 
-	xxx = xl[i];
-	yyy = yl[i];
-	ttt = tt[i];
+	xxx = partpos[i].x;
+	yyy = partpos[i].y;
+	ttt = partpos[i].w;
 
 	if (ttt >= 0)
 	{
