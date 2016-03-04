@@ -168,10 +168,10 @@ void GPUstep()
 	//printf("interp HD\n");
 	//int interpstep = hdstep - hdstart + 1;
 	//InterpstepCPU(nx, ny, backswitch, hdstep, totaltime, hddt, Ux, Uo, Un);
-	HD_interp <<< gridDimHD, blockDimHD, 0 >>>(nx, ny, backswitch, hdstep, totaltime, hddt, Uo_g, Un_g, Ux_g);
+	HD_interp <<< gridDimHD, blockDimHD, 0 >>>(nx, ny, backswitch, hdstep - hdstart, totaltime, hddt, Uo_g, Un_g, Ux_g);
 	CUDA_CHECK(cudaDeviceSynchronize());
 
-	HD_interp <<<gridDimHD, blockDimHD, 0 >>>(nx, ny, backswitch, hdstep, totaltime, hddt, Vo_g, Vn_g, Vx_g);
+	HD_interp << <gridDimHD, blockDimHD, 0 >>>(nx, ny, backswitch, hdstep - hdstart, totaltime, hddt, Vo_g, Vn_g, Vx_g);
 	CUDA_CHECK(cudaDeviceSynchronize());
 
 	//HD_interp <<<gridDimHD, blockDimHD, 0 >>>(nx, ny, backswitch, hdstep, totaltime, hddt, hho_g, hhn_g, hhx_g);
@@ -364,6 +364,8 @@ int main()
 	//outstep=10;
 	stp = 0;//hdstart*hddt/dt;
 	hdstep = hdstart;
+
+
 	
 	//printf("HD step:%d\n ",hdstep);
 	if (hdend == 0)
@@ -576,12 +578,12 @@ int main()
 
 
 	//Run CPU/GPU loop
-
+	totaltime = 0.0f;
 	
 	if (GPUDEV < 0) //CPU mainloop
 	{
 		printf("Model starting using CPU. dt=%f; \n",dt);
-		printf("step %f of %f\n", totaltime, hddt*hdend);
+		printf("step %f of %f\n", totaltime, hddt*(hdend-hdstart));
 		while ( (hddt*hdend-totaltime)>0.0f)
 		{
 			dt = min(dt, nextouttime-totaltime);
@@ -618,6 +620,7 @@ int main()
 		while ((hddt*hdend - totaltime)>0.0f)
 		{
 			dt = min(dt, nextouttime - totaltime);
+			//printf("dt=%f.\n",dt);
 			GPUstep();
 			totaltime = totaltime + dt;
 			stp++;
