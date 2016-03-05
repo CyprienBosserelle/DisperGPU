@@ -122,11 +122,12 @@ __global__ void updatepartpos(int npart, float dt, float Eh, float * dd_rand, fl
 			//Yd=(dd_rand[npart-i]*2-1)*sqrtf(6*Eh*dt);
 
 			//formulation used in Viikmae et al.
-			Xd = sqrtf(-4 * Eh*dt*logf(1 - dd_rand[i]))*cosf(2 * pi*dd_rand[npart - i]);
-			Yd = sqrtf(-4 * Eh*dt*logf(1 - dd_rand[i]))*sinf(2 * pi*dd_rand[npart - i]);
+			Xd = sqrtf(-4.0f * Eh*dt*logf(1 - dd_rand[i]))*cosf(2 * pi*dd_rand[npart - i]);
+			Yd = sqrtf(-4.0f * Eh*dt*logf(1 - dd_rand[i]))*sinf(2 * pi*dd_rand[npart - i]);
 
 			xxx = xxx + (Ux*dt + Xd) / distu; // Need to add the runge kutta scheme here or not
 			yyy = yyy + (Vx*dt + Yd) / distv;
+			zzz = Ux;
 		}
 	}
 

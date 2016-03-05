@@ -271,15 +271,297 @@ void readgridsize(char ncfile[], char Uvar[], char Vvar[], char hhvar[],int &nt,
 
 
 }
+void readgridsizeHYCOM(char ncfile[], char Uvar[], char Vvar[], int &nt, int &nx, int &ny, float *&xcoord, float *&ycoord)
+{
+	//read the dimentions of grid, levels and time 
+	int status;
+	int ncid, ndimsU, ndimsV, ndimshh, ndims;
+
+	int varid;
 
 
-void readHDstep(char ncfile[], char Uvar[], char Vvar[], char hhvar[], int nx, int ny, int hdstep, int lev, float *&Uo, float *&Vo,float *&hho)
+	int dimids[NC_MAX_VAR_DIMS];   /* dimension IDs */
+	char coordname[NC_MAX_NAME + 1];
+	size_t *ddimU, *ddimV, *ddimhh;
+	//char ncfile[]="ocean_ausnwsrstwq2.nc";
+
+	size_t nlev;
+	char ncfileU[256];
+	sprintf(ncfileU, "./uvel/%s001_00_3zu.nc",ncfile);
+
+	//Open NC file
+	printf("Open file\n");
+	status = nc_open(ncfileU, 0, &ncid);
+	if (status != NC_NOERR) handle_error(status);
+
+	//inquire variable by name
+	printf("Reading information aboout %s...", Uvar);
+	status = nc_inq_varid(ncid, Uvar, &varid);
+	if (status != NC_NOERR)
+		handle_error(status);
+
+	status = nc_inq_varndims(ncid, varid, &ndimsU);
+	if (status != NC_NOERR) handle_error(status);
+
+
+	status = nc_inq_vardimid(ncid, varid, dimids);
+	if (status != NC_NOERR) handle_error(status);
+
+	ddimU = (size_t *)malloc(ndimsU*sizeof(size_t));
+
+	//Read dimensions nx_u ny_u 
+	for (int iddim = 0; iddim < ndimsU; iddim++)
+	{
+		status = nc_inq_dimlen(ncid, dimids[iddim], &ddimU[iddim]);
+		if (status != NC_NOERR) handle_error(status);
+
+		//printf("dim:%d=%d\n", iddim, ddimU[iddim]);
+	}
+	status = nc_close(ncid);
+
+
+	//char ncfileU[256];
+	sprintf(ncfileU, "./vvel/%s001_00_3zv.nc",ncfile);
+
+	//Open NC file
+	printf("Open file\n");
+	status = nc_open(ncfileU, 0, &ncid);
+	if (status != NC_NOERR) handle_error(status);
+
+
+
+	printf(" %s...", Vvar);
+	status = nc_inq_varid(ncid, Vvar, &varid);
+	if (status != NC_NOERR)
+		handle_error(status);
+
+
+
+	status = nc_inq_varndims(ncid, varid, &ndimsV);
+	if (status != NC_NOERR) handle_error(status);
+	//printf("VVar:%d dims\n", ndimsV);
+
+	status = nc_inq_vardimid(ncid, varid, dimids);
+	if (status != NC_NOERR) handle_error(status);
+
+	ddimV = (size_t *)malloc(ndimsV*sizeof(size_t));
+
+	//Read dimensions nx_u ny_u 
+	for (int iddim = 0; iddim < ndimsV; iddim++)
+	{
+		status = nc_inq_dimlen(ncid, dimids[iddim], &ddimV[iddim]);
+		if (status != NC_NOERR) handle_error(status);
+
+		//printf("dim:%d=%d\n", iddim, ddimV[iddim]);
+	}
+
+
+	
+
+	if (ndimsU != ndimsV || ndimsU<3){
+		printf("Variable dimension problems\n");
+	}
+
+
+	nt = ddimV[0];
+	printf("ntimes in files: %d",nt);
+	if (ndimsU > 3){
+		printf("U Variable is 4D\n");
+		nlev = ddimV[1];
+		printf("nlevel in files: %d", nlev);
+	}
+
+	ny = ddimU[2];
+	nx = ddimU[3];
+	
+
+	//allocate
+	xcoord = (float *)malloc(nx*ny*sizeof(float));
+	ycoord = (float *)malloc(nx*ny*sizeof(float));
+
+	//inquire variable name for x dimension
+	//aka x dim of hh
+	int ycovar, xcovar;
+
+	
+	ycovar = dimids[2];
+	xcovar = dimids[3];
+	
+
+	//ycoord
+	status = nc_inq_dimname(ncid, ycovar, coordname);
+	if (status != NC_NOERR) handle_error(status);
+
+	status = nc_inq_varid(ncid, "Latitude", &varid);
+	if (status != NC_NOERR) handle_error(status);
+
+	status = nc_inq_varndims(ncid, varid, &ndims);
+	if (status != NC_NOERR) handle_error(status);
+
+	if (ndims < 2)
+	{
+		float * ytempvar;
+		ytempvar = (float *)malloc(ny*sizeof(float));
+		size_t start[] = { 0 };
+		size_t count[] = { ny };
+		status = nc_get_vara_float(ncid, varid, start, count, ytempvar);
+		if (status != NC_NOERR) handle_error(status);
+
+		for (int i = 0; i<nx; i++)
+		{
+			for (int j = 0; j<ny; j++)
+			{
+
+				ycoord[i + j*nx] = ytempvar[j];
+
+			}
+		}
+	}
+	else
+	{
+		size_t start[] = { 0, 0 };
+		size_t count[] = { ny, nx };
+		status = nc_get_vara_float(ncid, varid, start, count, ycoord);
+		if (status != NC_NOERR) handle_error(status);
+
+	}
+	//xcoord
+	status = nc_inq_dimname(ncid, xcovar, coordname);
+	if (status != NC_NOERR) handle_error(status);
+
+	status = nc_inq_varid(ncid, "Longitude", &varid);
+	if (status != NC_NOERR) handle_error(status);
+
+	status = nc_inq_varndims(ncid, varid, &ndims);
+	if (status != NC_NOERR) handle_error(status);
+
+	if (ndims < 2)
+	{
+		float * xtempvar;
+		xtempvar = (float *)malloc(nx*sizeof(float));
+		size_t start[] = { 0 };
+		size_t count[] = { nx };
+		status = nc_get_vara_float(ncid, varid, start, count, xtempvar);
+		if (status != NC_NOERR) handle_error(status);
+
+		for (int i = 0; i<nx; i++)
+		{
+			for (int j = 0; j<ny; j++)
+			{
+
+				xcoord[i + j*nx] = xtempvar[i];
+
+			}
+		}
+	}
+	else
+	{
+		size_t start[] = { 0, 0 };
+		size_t count[] = { ny, nx };
+		status = nc_get_vara_float(ncid, varid, start, count, xcoord);
+		if (status != NC_NOERR) handle_error(status);
+
+	}
+
+
+
+
+
+	status = nc_close(ncid);
+
+
+}
+
+
+void readHDstepHYCOM(char ncfile[], char Uvar[], char Vvar[], int nx, int ny, int hdstep, int lev, float *&Uo, float *&Vo,float *&hho)
 {
 	//
 	int status;
 	int ncid;
 	
 	int uu_id, vv_id,hh_id;
+
+	printf("Reading HD step: %d ...", hdstep);
+	//size_t startl[]={hdstep-1,lev,0,0};
+	//size_t countlu[]={1,1,netau,nxiu};
+	//size_t countlv[]={1,1,netav,nxiv};
+	size_t startl[] = { 0, lev, 0, 0 };
+	size_t countlu[] = { 1, 1, ny, nx };
+	size_t countlv[] = { 1, 1, ny, nx };
+
+	//static ptrdiff_t stridel[]={1,1,1,1};
+	static ptrdiff_t stridel[] = { 1, 1, 1, 1 };
+
+	char ncfileU[256];
+	sprintf(ncfileU, "./uvel/%s%3.3d_00_3zu.nc",ncfile,hdstep);
+
+	//Open NC file
+	status = nc_open(ncfileU, 0, &ncid);
+	if (status != NC_NOERR) handle_error(status);
+
+	//status = nc_inq_varid (ncid, "u", &uu_id);
+	status = nc_inq_varid(ncid, Uvar, &uu_id);
+	if (status != NC_NOERR) handle_error(status);
+	//status = nc_inq_varid (ncid, "v", &vv_id);
+	
+
+	status = nc_get_vara_float(ncid, uu_id, startl, countlu, Uo);
+	if (status != NC_NOERR) handle_error(status);
+
+	status = nc_close(ncid);
+
+	
+	sprintf(ncfileU, "./vvel/%s%3.3d_00_3zv.nc", ncfile, hdstep);
+
+	//Open NC file
+	status = nc_open(ncfileU, 0, &ncid);
+	if (status != NC_NOERR) handle_error(status);
+	status = nc_inq_varid(ncid, Vvar, &vv_id);
+	if (status != NC_NOERR) handle_error(status);
+
+	status = nc_get_vara_float(ncid, vv_id, startl, countlv, Vo);
+	if (status != NC_NOERR) handle_error(status);
+	status = nc_close(ncid);
+
+	//Set land flag to 0.0m/s to allow particle to stick to the coast
+
+	for (int i = 0; i<nx; i++)
+	{
+		for (int j = 0; j<ny; j++)
+		{
+			if (abs(Uo[i + j*nx])>10.0f)
+			{
+				Uo[i + j*nx] = 0.0f;
+			}
+		}
+	}
+
+	for (int i = 0; i<nx; i++)
+	{
+		for (int j = 0; j<ny; j++)
+		{
+			if (abs(Vo[i + j*nx])>10.0f)
+			{
+				Vo[i + j*nx] = 0.0f;
+			}
+		}
+	}
+
+
+
+	
+
+	
+	printf("...done\n");
+}
+
+void readHDstep(char ncfile[], char Uvar[], char Vvar[], char hhvar[], int nx, int ny, int hdstep, int lev, float *&Uo, float *&Vo, float *&hho)
+{
+	//
+	int status;
+	int ncid;
+
+	int uu_id, vv_id, hh_id;
 
 	printf("Reading HD step: %d ...", hdstep);
 	//size_t startl[]={hdstep-1,lev,0,0};
@@ -339,7 +621,7 @@ void readHDstep(char ncfile[], char Uvar[], char Vvar[], char hhvar[], int nx, i
 
 
 
-	
+
 
 	status = nc_close(ncid);
 	printf("...done\n");
@@ -448,8 +730,7 @@ void updatepartposCPU(int nx, int ny, int np, float dt, float Eh, float *Ux, flo
 	float rna, rnb, rnc, rnd; // to store random numbers
 
 	//float xxn, yyn;
-	/* initialize random seed: */
-	srand(time(NULL));
+	
 
 	for (int p = 0; p < np; p++)
 	{
@@ -465,10 +746,10 @@ void updatepartposCPU(int nx, int ny, int np, float dt, float Eh, float *Ux, flo
 			ddx = interp2posCPU(nx, ny, xxx, yyy, distX);
 			ddy = interp2posCPU(nx, ny, xxx, yyy, distY);
 
-			rna = (rand() % 100) / 100.0f;
-			rnb = (rand() % 100) / 100.0f;
-			rnc = (rand() % 100) / 100.0f;
-			rnd = (rand() % 100) / 100.0f;
+			rna = ((float)rand() / (float)(RAND_MAX));
+			rnb = ((float)rand() / (float)(RAND_MAX));
+			rnc = ((float)rand() / (float)(RAND_MAX));
+			rnd = ((float)rand() / (float)(RAND_MAX));
 			
 
 			Xd = sqrtf(-4.0f * Eh*dt*logf(1.0f - rna))*cosf(2.0f * pi*(rnb));
