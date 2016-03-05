@@ -80,11 +80,11 @@ extern "C" void readseedfile(char seedfile[],int npart,int nx,int ny, float *xco
 			fscanf(fseed,"%f,%f",&vertx[v],&verty[v]);
 
 		}
-		printf("Vx[0]=%f; Vy[0]=%f\n", vertx[0], verty[0]);
-		printf("Vx[2]=%f; Vy[2]=%f\n", vertx[2], verty[2]);
-		printf("Vx[5]=%f; Vy[5]=%f\n", vertx[5], verty[5]);
-		printf("Vx[10]=%f; Vy[10]=%f\n", vertx[10], verty[10]);
-		printf("Vx[50]=%f; Vy[50]=%f\n", vertx[50], verty[50]);
+		//printf("Vx[0]=%f; Vy[0]=%f\n", vertx[0], verty[0]);
+		//printf("Vx[2]=%f; Vy[2]=%f\n", vertx[2], verty[2]);
+		//printf("Vx[5]=%f; Vy[5]=%f\n", vertx[5], verty[5]);
+		//printf("Vx[10]=%f; Vy[10]=%f\n", vertx[10], verty[10]);
+		//printf("Vx[50]=%f; Vy[50]=%f\n", vertx[50], verty[50]);
 		
 		//find min and max of polygon;
 		xmin = vertx[0];
