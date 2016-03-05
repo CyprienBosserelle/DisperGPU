@@ -730,8 +730,7 @@ void updatepartposCPU(int nx, int ny, int np, float dt, float Eh, float *Ux, flo
 	float rna, rnb, rnc, rnd; // to store random numbers
 
 	//float xxn, yyn;
-	/* initialize random seed: */
-	srand(time(NULL));
+	
 
 	for (int p = 0; p < np; p++)
 	{
@@ -747,10 +746,10 @@ void updatepartposCPU(int nx, int ny, int np, float dt, float Eh, float *Ux, flo
 			ddx = interp2posCPU(nx, ny, xxx, yyy, distX);
 			ddy = interp2posCPU(nx, ny, xxx, yyy, distY);
 
-			rna = (rand() % 100) / 100.0f;
-			rnb = (rand() % 100) / 100.0f;
-			rnc = (rand() % 100) / 100.0f;
-			rnd = (rand() % 100) / 100.0f;
+			rna = ((float)rand() / (float)(RAND_MAX));
+			rnb = ((float)rand() / (float)(RAND_MAX));
+			rnc = ((float)rand() / (float)(RAND_MAX));
+			rnd = ((float)rand() / (float)(RAND_MAX));
 			
 
 			Xd = sqrtf(-4.0f * Eh*dt*logf(1.0f - rna))*cosf(2.0f * pi*(rnb));

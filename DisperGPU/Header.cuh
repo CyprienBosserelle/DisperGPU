@@ -33,3 +33,7 @@ void resetNincelCPU(int nx, int ny, float * Nincel);
 
 void creatncfile(char outfile[], int nx, int ny, int np, float *xval, float *yval, float totaltime, float *Nincel, float *cNincel, float *cTincel, float4 * PartPos);
 void writestep2nc(char outfile[], int nx, int ny, int np, float totaltime, float *xval, float *yval, float *Nincel, float *cNincel, float * cTincel, float4 *PartPos);
+
+float isLeft(float P0x, float P0y, float P1x, float P1y, float P2x, float P2y);
+int cn_PnPoly(float Px, float Py, float* Vx, float *Vy, int n);
+int wn_PnPoly(float Px, float Py, float* Vx, float* Vy, int n);
