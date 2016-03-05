@@ -153,8 +153,8 @@ void GPUstep()
 		//CUDA_CHECK(cudaDeviceSynchronize());
 
 		
-		//readHDstepHYCOM(ncfile, Uvarname, Vvarname, nx, ny, steptoread, lev, Un, Vn, hhn);
-		readHDstep(ncfile, Uvarname, Vvarname, hhvarname, nx, ny, steptoread, lev, Un, Vn, hhn);
+		readHDstepHYCOM(ncfile, Uvarname, Vvarname, nx, ny, steptoread, lev, Un, Vn, hhn);
+		//readHDstep(ncfile, Uvarname, Vvarname, hhvarname, nx, ny, steptoread, lev, Un, Vn, hhn);
 
 		CUDA_CHECK(cudaMemcpy(Un_g, Un, nx*ny*sizeof(float), cudaMemcpyHostToDevice));
 		CUDA_CHECK(cudaMemcpy(Vn_g, Vn, nx*ny*sizeof(float), cudaMemcpyHostToDevice));
@@ -229,8 +229,8 @@ void CPUstep()
 		}
 
 		NextstepCPU(nx,ny, Uo, Vo, hho, Un, Vn, hhn);
-		//readHDstepHYCOM(ncfile, Uvarname, Vvarname, nx, ny, steptoread, lev, Un, Vn, hhn);
-		readHDstep(ncfile, Uvarname, Vvarname, hhvarname, nx, ny, steptoread, lev, Un, Vn, hhn);
+		readHDstepHYCOM(ncfile, Uvarname, Vvarname, nx, ny, steptoread, lev, Un, Vn, hhn);
+		//readHDstep(ncfile, Uvarname, Vvarname, hhvarname, nx, ny, steptoread, lev, Un, Vn, hhn);
 
 
 	}
@@ -315,8 +315,8 @@ int main()
 	fprintf(logfile, "Complete\n");
 	fprintf(logfile, "Reading netCDF file : %s...\n", ncfile);
 	printf("Reading netCDF file: %s...\n", ncfile);
-	//readgridsizeHYCOM(ncfile, Uvarname, Vvarname, nt, nx, ny, xcoord, ycoord);
-	readgridsize(ncfile, Uvarname, Vvarname, hhvarname, nt, nx, ny, xcoord, ycoord);
+	readgridsizeHYCOM(ncfile, Uvarname, Vvarname, nt, nx, ny, xcoord, ycoord);
+	//readgridsize(ncfile, Uvarname, Vvarname, hhvarname, nt, nx, ny, xcoord, ycoord);
 
 
 	fprintf(logfile, "\t nx=%d\tny=%d\tnt=%d\n",nx,ny,nt);
@@ -400,16 +400,16 @@ int main()
 	//Read first step in Hd model
 	///////////////////////////////
 
-	//readHDstepHYCOM(ncfile, Uvarname, Vvarname, nx, ny, steptoread, lev, Uo, Vo, hho);
+	readHDstepHYCOM(ncfile, Uvarname, Vvarname, nx, ny, steptoread, lev, Uo, Vo, hho);
 	
 	
 	//Also read next step?
-	//readHDstepHYCOM(ncfile, Uvarname, Vvarname, nx, ny, steptoread+1, lev, Un, Vn, hhn);
+	readHDstepHYCOM(ncfile, Uvarname, Vvarname, nx, ny, steptoread+1, lev, Un, Vn, hhn);
 
-	readHDstep(ncfile, Uvarname, Vvarname, hhvarname, nx, ny, steptoread, lev, Uo, Vo, hho);
+	//readHDstep(ncfile, Uvarname, Vvarname, hhvarname, nx, ny, steptoread, lev, Uo, Vo, hho);
 
 	//Also read next step?
-	readHDstep(ncfile, Uvarname, Vvarname, hhvarname, nx, ny, steptoread + 1, lev, Un, Vn, hhn);
+	//readHDstep(ncfile, Uvarname, Vvarname, hhvarname, nx, ny, steptoread + 1, lev, Un, Vn, hhn);
 
 	//Calculate best dt
 	if (!(dt > 0.0f))// if dt==0.0
