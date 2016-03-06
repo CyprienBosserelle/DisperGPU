@@ -163,6 +163,9 @@ copy "$(CudaToolkitBinDir)\cudart*.dll" "$(OutDir)"</Command>
     <ClInclude Include="Header.cuh" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="Inside_polygon.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">false</ExcludedFromBuild>
+    </ClCompile>
     <ClCompile Include="partfunk.cpp" />
     <ClCompile Include="Readgrid.cpp" />
     <ClCompile Include="writexyz.cpp" />

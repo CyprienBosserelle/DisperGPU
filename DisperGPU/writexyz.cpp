@@ -29,7 +29,7 @@ void writexyz(int npart,int nx, int ny,float * xcoord, float * ycoord, float4 * 
 	FILE * ofile;
 	ofile= fopen (outfile,"w");
 
-	
+	fprintf(ofile, "Initial seed\n 4\t Reuse_Seed_File\n");
 
 	for (int i=0; i<npart; i++)
 	{
@@ -44,9 +44,9 @@ void writexyz(int npart,int nx, int ny,float * xcoord, float * ycoord, float4 * 
 		realy = interp2posCPU(nx, ny, xi, yj, ycoord);
 
 
-		if(t>=0.0f)// Do not output particle that haven't been released yet
+		//if(t>=0.0f)// Do not output particle that haven't been released yet
 		{
-			fprintf(ofile, "%f\t%f\t%f\t%f\t%f\t%f\n", realx,realy, partpos[i].z, t, xi, yj);
+			fprintf(ofile, "%f,%f,%f,%f,%f,%f\n", realx,realy, partpos[i].z, t, xi, yj);
 		}
 	}
 	fclose (ofile);

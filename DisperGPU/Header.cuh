@@ -7,7 +7,14 @@ template <class T> const T& max(const T& a, const T& b);
 template <class T> const T& round(const T& a);
 
 void readgridsize(char ncfile[], char Uvar[], char Vvar[], char hhvar[], int &nt, int &nx, int &ny, float *&xcoord, float *&ycoord);
+
+void readgridsizeHYCOM(char ncfile[], char Uvar[], char Vvar[], int &nt, int &nx, int &ny, float *&xcoord, float *&ycoord);
+     
+
 void readHDstep(char ncfile[], char Uvar[], char Vvar[], char hhvar[], int nx, int ny, int hdstep, int lev, float *&Uo, float *&Vo, float *&hho);
+
+void readHDstepHYCOM(char ncfile[], char Uvar[], char Vvar[], int nx, int ny, int hdstep, int lev, float *&Uo, float *&Vo, float *&hho);
+
 void CalcDistXY(int nx, int ny, int geocoord, float *xcoord, float * ycoord, float * &distX, float *&distY);
 
 void Calcmaxstep(int nx, int ny, float &dt, float hddt, float *Uo, float *Vo, float *Un, float *Vn, float * distX, float *distY);
@@ -21,8 +28,12 @@ void xyz2ijk( int nx, int ny, float * xcoord, float * ycoord, float &xi, float &
 bool isinquad(float v1x, float v1y, float v2x, float v2y, float v3x, float v3y, float v4x, float v4y, float px, float py);
 extern "C" void readseedfile(char seedfile[], int npart, int nx, int ny, float *xcoord, float *ycoord, float4* &partpos);
 void writexyz(int npart, int nx, int ny, float * xcoord, float * ycoord, float4 * partpos, char outfile[]);
-void calcNincel(int np, int nx, int ny, float4 * partpos, float * Nincel, float * cNincel, float *cTincel);
-void resetNincel(int nx, int ny, float * Nincel);
+void calcNincelCPU(int np, int nx, int ny, float4 * partpos, float * Nincel, float * cNincel, float *cTincel);
+void resetNincelCPU(int nx, int ny, float * Nincel);
 
 void creatncfile(char outfile[], int nx, int ny, int np, float *xval, float *yval, float totaltime, float *Nincel, float *cNincel, float *cTincel, float4 * PartPos);
 void writestep2nc(char outfile[], int nx, int ny, int np, float totaltime, float *xval, float *yval, float *Nincel, float *cNincel, float * cTincel, float4 *PartPos);
+
+float isLeft(float P0x, float P0y, float P1x, float P1y, float P2x, float P2y);
+int cn_PnPoly(float Px, float Py, float* Vx, float *Vy, int n);
+int wn_PnPoly(float Px, float Py, float* Vx, float* Vy, int n);
