@@ -74,9 +74,18 @@ float *Nincel_g, *cNincel_g, *cTincel_g; // Number of particle in cell, Cumulati
 
 float *distX, *distY; // Distance calculated between cells
 float *xcoord, *ycoord; // REal world coordinates
-float nextouttime;
+float nextouttime;//obsolete
+float nextouttimeXYZ, nextouttimeNincel;
+
+
+
 float outtime;
-int stp, outstep, outtype; // Model step, output step, next output step, output file type
+float outtimeXYZ, outtimeNincel;
+int stp, outstep, outtypeXYZ; // Model step, output step, next output step, output file type
+
+
+
+
 
 int backswitch; // 0 run HD model forward 1 run the model backward
 float dt, olddt; // particle model time step
@@ -153,8 +162,8 @@ void GPUstep()
 		//CUDA_CHECK(cudaDeviceSynchronize());
 
 		
-		readHDstepHYCOM(ncfile, Uvarname, Vvarname, nx, ny, steptoread, lev, Un, Vn, hhn);
-		//readHDstep(ncfile, Uvarname, Vvarname, hhvarname, nx, ny, steptoread, lev, Un, Vn, hhn);
+		//readHDstepHYCOM(ncfile, Uvarname, Vvarname, nx, ny, steptoread, lev, Un, Vn, hhn);
+		readHDstep(ncfile, Uvarname, Vvarname, hhvarname, nx, ny, steptoread, lev, Un, Vn, hhn);
 
 		CUDA_CHECK(cudaMemcpy(Un_g, Un, nx*ny*sizeof(float), cudaMemcpyHostToDevice));
 		CUDA_CHECK(cudaMemcpy(Vn_g, Vn, nx*ny*sizeof(float), cudaMemcpyHostToDevice));
@@ -229,8 +238,8 @@ void CPUstep()
 		}
 
 		NextstepCPU(nx,ny, Uo, Vo, hho, Un, Vn, hhn);
-		readHDstepHYCOM(ncfile, Uvarname, Vvarname, nx, ny, steptoread, lev, Un, Vn, hhn);
-		//readHDstep(ncfile, Uvarname, Vvarname, hhvarname, nx, ny, steptoread, lev, Un, Vn, hhn);
+		//readHDstepHYCOM(ncfile, Uvarname, Vvarname, nx, ny, steptoread, lev, Un, Vn, hhn);
+		readHDstep(ncfile, Uvarname, Vvarname, hhvarname, nx, ny, steptoread, lev, Un, Vn, hhn);
 
 
 	}
@@ -307,7 +316,7 @@ int main()
 	//fscanf(fop, "%d\t%*s", &GPUDEV);
 
 	//fscanf(fop, "%d\t%*s", &outtype);
-	fscanf(fop, "%f\t%*s", &outtime);
+	fscanf(fop, "%f,%f\t%*s", &outtimeXYZ,&outtimeNincel);
 	fscanf(fop, "%s\t%*s", &ncoutfile);
 
 	fclose(fop);
@@ -315,8 +324,8 @@ int main()
 	fprintf(logfile, "Complete\n");
 	fprintf(logfile, "Reading netCDF file : %s...\n", ncfile);
 	printf("Reading netCDF file: %s...\n", ncfile);
-	readgridsizeHYCOM(ncfile, Uvarname, Vvarname, nt, nx, ny, xcoord, ycoord);
-	//readgridsize(ncfile, Uvarname, Vvarname, hhvarname, nt, nx, ny, xcoord, ycoord);
+	//readgridsizeHYCOM(ncfile, Uvarname, Vvarname, nt, nx, ny, xcoord, ycoord);
+	readgridsize(ncfile, Uvarname, Vvarname, hhvarname, nt, nx, ny, xcoord, ycoord);
 
 
 	fprintf(logfile, "\t nx=%d\tny=%d\tnt=%d\n",nx,ny,nt);
@@ -382,11 +391,19 @@ int main()
 		hdend = nt - 1;
 	}
 
-	if (outtime == 0.0f)
+	if (outtimeXYZ == 0.0f)
 	{
-		outtime = hddt*hdend;
+		outtimeXYZ = hddt*hdend;
 	}
-	nextouttime = outtime;
+	nextouttimeXYZ = outtimeXYZ;
+
+	if (outtimeNincel == 0.0f)
+	{
+		outtimeNincel = hddt*hdend;
+	}
+	nextouttimeNincel = outtimeNincel;
+
+
 
 	int steptoread = hdstep;
 
@@ -400,16 +417,16 @@ int main()
 	//Read first step in Hd model
 	///////////////////////////////
 
-	readHDstepHYCOM(ncfile, Uvarname, Vvarname, nx, ny, steptoread, lev, Uo, Vo, hho);
+	//readHDstepHYCOM(ncfile, Uvarname, Vvarname, nx, ny, steptoread, lev, Uo, Vo, hho);
 	
 	
 	//Also read next step?
-	readHDstepHYCOM(ncfile, Uvarname, Vvarname, nx, ny, steptoread+1, lev, Un, Vn, hhn);
+	//readHDstepHYCOM(ncfile, Uvarname, Vvarname, nx, ny, steptoread+1, lev, Un, Vn, hhn);
 
-	//readHDstep(ncfile, Uvarname, Vvarname, hhvarname, nx, ny, steptoread, lev, Uo, Vo, hho);
+	readHDstep(ncfile, Uvarname, Vvarname, hhvarname, nx, ny, steptoread, lev, Uo, Vo, hho);
 
 	//Also read next step?
-	//readHDstep(ncfile, Uvarname, Vvarname, hhvarname, nx, ny, steptoread + 1, lev, Un, Vn, hhn);
+	readHDstep(ncfile, Uvarname, Vvarname, hhvarname, nx, ny, steptoread + 1, lev, Un, Vn, hhn);
 
 	//Calculate best dt
 	if (!(dt > 0.0f))// if dt==0.0
@@ -588,8 +605,21 @@ int main()
 	//writexyz(xp, yp, zp, tp, xl, yl, npart, fileoutn);
 	//create netcdf file
 	
-	creatncfile(ncoutfile, nx, ny, np, xcoord, ycoord, 0.0f, Nincel, cNincel, cTincel, partpos);
+	//creatncfile(ncoutfile, nx, ny, np, xcoord, ycoord, 0.0f, Nincel, cNincel, cTincel, partpos);
+	char ncoutNincel[256];
+	char ncoutPPos[256];
+	sprintf(ncoutNincel, "%s_Nincel.nc", ncoutfile);
+	creatncfileNincel(ncoutNincel, nx, ny, np, xcoord, ycoord, 0.0f, Nincel, cNincel, cTincel);
 
+
+
+	if (outtypeXYZ == 0)
+	{
+		
+		sprintf(ncoutPPos, "%s_PartPos.nc", ncoutfile);
+		creatncfilePPos(ncoutPPos, nx, ny, np, xcoord, ycoord, 0.0f, partpos);
+	}
+	
 
 	//Run CPU/GPU loop
 	totaltime = 0.0f;
@@ -607,18 +637,31 @@ int main()
 				totaltime = totaltime + dt;
 				stp++;
 
-				if ((nextouttime - totaltime) < 0.001f) // Round off error checking
+				if ((nextouttimeXYZ - totaltime) < 0.001f) // Round off error checking
 				{
-					//WriteoutCPU();
-					char fileoutn[15];
-					sprintf(fileoutn, "Part_%d.xyz", stp);
-					writexyz(np, nx, ny, xcoord, ycoord, partpos, fileoutn);
-					//writestep2nc(ncoutfile, nx, ny, totaltime, Nincel, cNincel, cTincel);
-					writestep2nc(ncoutfile, nx, ny, np, totaltime, xcoord, ycoord, Nincel, cNincel, cTincel, partpos);
-					nextouttime = nextouttime + outtime;
-					dt = olddt;
-					//reset Nincel 
-					resetNincelCPU(nx, ny, Nincel);
+					//Write XYZ output
+					if (outtypeXYZ > 0)
+					{
+						char fileoutn[15];
+						sprintf(fileoutn, "Part_%d.xyz", stp);
+						writexyz(np, nx, ny, xcoord, ycoord, partpos, fileoutn);
+					
+					}
+					else
+					{
+						//writestep2nc(ncoutfile, nx, ny, totaltime, Nincel, cNincel, cTincel);
+						writestep2ncPPos(ncoutPPos, nx, ny, np, totaltime, xcoord, ycoord, partpos);
+						nextouttime = nextouttime + outtime;
+						dt = olddt;
+						//reset Nincel 
+						resetNincelCPU(nx, ny, Nincel);
+					}
+					
+				}
+				if ((nextouttimeNincel - totaltime) < 0.001f) // Round off error checking
+				{
+					//Write Nincel output
+					writestep2ncNincel(ncoutNincel, nx, ny, np, totaltime, xcoord, ycoord, Nincel, cNincel, cTincel);
 				}
 
 
@@ -644,22 +687,35 @@ int main()
 				if ((nextouttime - totaltime) < 0.001f) // Round off error checking
 				{
 					//WriteoutCPU();
-					char fileoutn[15];
-					sprintf(fileoutn, "Part_%d.xyz", stp);
-					//writexyz(np, nx, ny, xcoord, ycoord, partpos, fileoutn);
-					//writestep2nc(ncoutfile, nx, ny, totaltime, Nincel, cNincel, cTincel);
 					CUDA_CHECK(cudaMemcpy(partpos, partpos_g, np*sizeof(float4), cudaMemcpyDeviceToHost));
+					
+					//Write XYZ output
+					if (outtypeXYZ > 0)
+					{
+						char fileoutn[15];
+						sprintf(fileoutn, "Part_%d.xyz", stp);
+						writexyz(np, nx, ny, xcoord, ycoord, partpos, fileoutn);
+						//writestep2nc(ncoutfile, nx, ny, totaltime, Nincel, cNincel, cTincel);
+					}
+					else
+					{
+						//writestep2nc(ncoutfile, nx, ny, totaltime, Nincel, cNincel, cTincel);
+						writestep2ncPPos(ncoutPPos, nx, ny, np, totaltime, xcoord, ycoord, partpos);
+						nextouttime = nextouttime + outtime;
+						dt = olddt;
+						//reset Nincel 
+
+					}
+				}
+				if ((nextouttimeNincel - totaltime) < 0.001f) // Round off error checking
+				{
 					CUDA_CHECK(cudaMemcpy(Nincel, Nincel_g, nx*ny*sizeof(float), cudaMemcpyDeviceToHost));
 					CUDA_CHECK(cudaMemcpy(cNincel, cNincel_g, nx*ny*sizeof(float), cudaMemcpyDeviceToHost));
 					CUDA_CHECK(cudaMemcpy(cTincel, cTincel_g, nx*ny*sizeof(float), cudaMemcpyDeviceToHost));
-
-
-					writestep2nc(ncoutfile, nx, ny, np, totaltime, xcoord, ycoord, Nincel, cNincel, cTincel, partpos);
-					nextouttime = nextouttime + outtime;
-					dt = olddt;
-					//reset Nincel 
-					resetNincelCPU(nx, ny, Nincel);
+					//Write Nincel output
+					writestep2ncNincel(ncoutNincel, nx, ny, np, totaltime, xcoord, ycoord, Nincel, cNincel, cTincel);
 				}
+
 
 
 			}
