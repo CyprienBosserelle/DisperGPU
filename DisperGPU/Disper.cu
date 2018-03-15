@@ -16,46 +16,15 @@
 //////////////////////////////////////////////////////////////////////////////////
 
 
-#include "cuda_runtime.h"
-#include "device_launch_parameters.h"
-
-#include <stdio.h>
-
-#include <stdio.h>
-#include <stdlib.h>
-#include <time.h>
-#include <string.h>
-#include <cmath>
-#include <fstream>
-#include <netcdf.h>
-#include <algorithm>
-#include <cuda.h>
-#include <cuda_runtime.h>
-#include <curand.h>
-#include <math.h>
 #include "Header.cuh"
 
 #include "Disper_kernel.cu"
 
-char ncfile[256];
-char Uvarname[256];
-char Vvarname[256];
-char hhvarname[256];
-char ncoutfile[256];
-char seedfile[256];
-
 FILE * logfile;
-
-int np;//Numer of particles
-int partmode; // Particle model type: 0:test set up the model but do not run any loop
-              // 1: 2D, passive particle no buyancy taken into acount
-		      // 2: Quasi 3D, buoyant/sinking particle advected with 2d depth averaged hydrodynamics, Log profile is assumed
-              // 3D: 3D model buoyant/sinking particle advected with 3d hydrodynamcis
 
 float4 * partpos,*partpos_g; //Particule position x,y,z,t
 
-int nx, ny, nz, nt; //HD input may have a more complex structure with staggered grid 
-float totaltime; // needed to track total time as dt can vary
+
 float *Uo, *Un; //U velocity, Step 0 and step n
 float *Vo, *Vn; //V velocity, Step 0 and step n
 float *Ux, *Vx, *hhx; // U and V velocity at the dispersal step
@@ -64,28 +33,13 @@ float *Uo_g, *Un_g, *Ux_g; //Same on GPU plus at t particle step
 float *Vo_g, *Vn_g, *Vx_g; // Same on GPU plus at t particle step
 float *hho_g, *hhn_g, *hhx_g;// Same on GPU plus at t particle step
 
-int hdstep, hdstart, hdend; // HD model step, HD step start and HD step end
-float hddt; // HD model tme step
-int lev; //Level for 3D HD but 2D/Q3D particle model
-int geocoord; //Geographic coordinate system switch 0 is metric 1 is degrees
-
 float *Nincel, *cNincel, *cTincel; // Number of particle in cell, Cumulative Nincel, Cumulative time in cell CPU
 float *Nincel_g, *cNincel_g, *cTincel_g; // Number of particle in cell, Cumulative Nincel, Cumulative time in cell on GPU
 
 float *distX, *distY; // Distance calculated between cells
 float *xcoord, *ycoord; // REal world coordinates
-float nextouttime;
-float outtime;
-int stp, outstep, outtype; // Model step, output step, next output step, output file type
 
-int backswitch; // 0 run HD model forward 1 run the model backward
-float dt, olddt; // particle model time step
-float Eh, Ev; // Eddy viscosity horizontale, vertical
-float minrwdepth; // Minimum depth for using Eddy viscosity
 
-int GPUDEV = 0; // GPU device in use  (default is 0, aka first available device from device query) negative value means force use of cpu and other positive value a dpecific GPU in a multi GPU system
-
-int SEED = 777; //Seed for random number generator
 float * d_Rand; //GPU random number array
 curandGenerator_t gen; // Random number generator using curand
 
@@ -260,6 +214,31 @@ void CPUstep()
 
 int main()
 {
+	//Model starts Here//
+
+	//The main function setups all the init of the model and then calls the mainloop to actually run the model
+
+
+	//First part reads the inputs to the model 
+	//then allocate memory on GPU and CPU
+	//Then prepare and initialise memory and arrays on CPU and GPU
+	// Prepare output file
+	// Run main loop
+	// Clean up and close
+
+
+	// Start timer to keep track of time 
+	clock_t startcputime, endcputime;
+
+
+	startcputime = clock();
+	Param Dparam;
+	Control Dcontrol;
+
+	// Initialise totaltime
+	Dcontrol.totaltime = 0.0;
+	Dcontrol.nextouttime = 0.0;
+
 	char logfilename[] = "DisperGPU.log";
 	logfile = fopen(logfilename, "w");
 	fprintf(logfile, "DisperGPU v0.0\n");
@@ -270,6 +249,11 @@ int main()
 	//////////////////////////////////////////////////////
 	fprintf(logfile, "Reading DisperGPU.dat...\t");
 	printf( "Reading DisperGPU.dat\n");
+
+
+
+
+
 	char opfile[] = "DisperGPU.dat";
 	
 	
@@ -288,41 +272,45 @@ int main()
 	
 
 	
-	fscanf(fop, "%*s %s\t%*s", &ncfile); //HD file name should have U V velocity and depth
-	fscanf(fop, "%s\t%*s", &Uvarname);
-	fscanf(fop, "%s\t%*s", &Vvarname);
-	fscanf(fop, "%s\t%*s", &hhvarname);
-	fscanf(fop, "%f\t%*s", &hddt);
-	fscanf(fop, "%d,%d\t%*s", &hdstart, &hdend);
-	fscanf(fop, "%d\t%*s", &lev);
-	fscanf(fop, "%d\t%*s", &geocoord);
-	fscanf(fop, "%d\t%*s", &backswitch);
-	fscanf(fop, "%d\t%*s", &partmode);
-	fscanf(fop, "%u\t%*s", &np);
-	fscanf(fop, "%f\t%*s", &dt);
-	fscanf(fop, "%f\t%*s", &Eh);
-	fscanf(fop, "%f\t%*s", &Ev);
-	fscanf(fop, "%f\t%*s", &minrwdepth);
-	fscanf(fop, "%s\t%*s", &seedfile);
+	fscanf(fop, "%*s %s\t%*s", &Dparam.ncfile); //HD file name should have U V velocity and depth
+	fscanf(fop, "%s\t%*s", &Dparam.Uvarname);
+	fscanf(fop, "%s\t%*s", &Dparam.Vvarname);
+	fscanf(fop, "%s\t%*s", &Dparam.hhvarname);
+	fscanf(fop, "%f\t%*s", &Dparam.hddt);
+	fscanf(fop, "%d,%d\t%*s", &Dparam.hdstart, &Dparam.hdend);
+	fscanf(fop, "%d\t%*s", &Dparam.lev);
+	fscanf(fop, "%d\t%*s", &Dparam.geocoord);
+	fscanf(fop, "%d\t%*s", &Dparam.backswitch);
+	fscanf(fop, "%d\t%*s", &Dparam.partmode);
+	fscanf(fop, "%u\t%*s", &Dparam.np);
+	fscanf(fop, "%f\t%*s", &Dcontrol.dt);
+	fscanf(fop, "%f\t%*s", &Dparam.Eh);
+	fscanf(fop, "%f\t%*s", &Dparam.Ev);
+	fscanf(fop, "%f\t%*s", &Dparam.minrwdepth);
+	fscanf(fop, "%s\t%*s", &Dparam.seedfile);
 	//fscanf(fop, "%d\t%*s", &GPUDEV);
 
 	//fscanf(fop, "%d\t%*s", &outtype);
-	fscanf(fop, "%f\t%*s", &outtime);
-	fscanf(fop, "%s\t%*s", &ncoutfile);
+	fscanf(fop, "%f\t%*s", &Dcontrol.outtime);
+	fscanf(fop, "%s\t%*s", &Dparam.ncoutfile);
 
 	fclose(fop);
 
 	fprintf(logfile, "Complete\n");
-	fprintf(logfile, "Reading netCDF file : %s...\n", ncfile);
-	printf("Reading netCDF file: %s...\n", ncfile);
+	fprintf(logfile, "Reading netCDF file : %s...\n", Dparam.ncfile);
+	printf("Reading netCDF file: %s...\n", Dparam.ncfile);
 	//readgridsizeHYCOM(ncfile, Uvarname, Vvarname, nt, nx, ny, xcoord, ycoord);
-	readgridsize(ncfile, Uvarname, Vvarname, hhvarname, nt, nx, ny, xcoord, ycoord);
+	readgridsize(Dparam.ncfile, Dparam.Uvarname, Dparam.Vvarname, Dparam.hhvarname, Dparam.nt, Dparam.nx, Dparam.ny, xcoord, ycoord);
 
 
-	fprintf(logfile, "\t nx=%d\tny=%d\tnt=%d\n",nx,ny,nt);
-	printf("\t nx=%d\tny=%d\tnt=%d\n", nx, ny, nt);
+	fprintf(logfile, "\t nx=%d\tny=%d\tnt=%d\n", Dparam.nx, Dparam.ny, Dparam.nt);
+	printf("\t nx=%d\tny=%d\tnt=%d\n", Dparam.nx, Dparam.ny, Dparam.nt);
 	fprintf(logfile, "...done\n");
 	printf("...done\n");
+
+	int nx = Dparam.nx;
+	int ny = Dparam.ny;
+	int nt = Dparam.nt;
 
 
 	//set up CPU mem
@@ -367,32 +355,32 @@ int main()
 	printf("...done\n");
 
 	printf("Calculate distance array... ");
-	CalcDistXY(nx, ny, geocoord, xcoord, ycoord, distX,distY);
+	CalcDistXY(nx, ny, Dparam.geocoord, xcoord, ycoord, distX,distY);
 	printf("...done\n");
 	//Calculate first HD step
 	//outstep=10;
-	stp = 0;//hdstart*hddt/dt;
-	hdstep = hdstart;
+	Dcontrol.stp = 0;//hdstart*hddt/dt;
+	Dcontrol.hdstep = Dcontrol.hdstart;
 
 
 	
 	//printf("HD step:%d\n ",hdstep);
-	if (hdend == 0)
+	if (Dcontrol.hdend == 0)
 	{
-		hdend = nt - 1;
+		Dcontrol.hdend = Dparam.nt - 1;
 	}
 
-	if (outtime == 0.0f)
+	if (Dcontrol.outtime == 0.0f)
 	{
-		outtime = hddt*hdend;
+		Dcontrol.outtime = Dparam.hddt*Dcontrol.hdend;
 	}
-	nextouttime = outtime;
+	Dcontrol.nextouttime = Dcontrol.outtime;
 
-	int steptoread = hdstep;
+	int steptoread = Dcontrol.hdstep;
 
-	if (backswitch>0)
+	if (Dparam.backswitch>0)
 	{
-		steptoread = hdend - hdstep;
+		steptoread = Dcontrol.hdend - Dcontrol.hdstep;
 	}
 
 	
@@ -406,21 +394,21 @@ int main()
 	//Also read next step?
 	//readHDstepHYCOM(ncfile, Uvarname, Vvarname, nx, ny, steptoread+1, lev, Un, Vn, hhn);
 
-	readHDstep(ncfile, Uvarname, Vvarname, hhvarname, nx, ny, steptoread, lev, Uo, Vo, hho);
+	readHDstep(Dparam.ncfile, Dparam.Uvarname, Dparam.Vvarname, Dparam.hhvarname, Dparam.nx, Dparam.ny, steptoread, Dparam.lev, Uo, Vo, hho);
 
 	//Also read next step?
-	readHDstep(ncfile, Uvarname, Vvarname, hhvarname, nx, ny, steptoread + 1, lev, Un, Vn, hhn);
+	readHDstep(Dparam.ncfile, Dparam.Uvarname, Dparam.Vvarname, Dparam.hhvarname, Dparam.nx, Dparam.ny, steptoread + 1, Dparam.lev, Un, Vn, hhn);
 
 	//Calculate best dt
-	if (!(dt > 0.0f))// if dt==0.0
+	if (!(Dcontrol.dt > 0.0f))// if dt==0.0
 	{
-		Calcmaxstep(nx, ny, dt, hddt, Uo, Vo, Un, Vn, distX, distY);
+		Calcmaxstep(nx, ny, Dcontrol.dt, Dparam.hddt, Uo, Vo, Un, Vn, distX, distY);
 	}
-	olddt = dt;
+	Dcontrol.olddt = Dcontrol.dt;
 	printf("Allocating CPU memory for particle position... ");
 	//Initialise particles on CPU
-	partpos = (float4 *)malloc(np*sizeof(float4));
-	d_Rand = (float *)malloc(np*sizeof(float));
+	partpos = (float4 *)malloc(Dparam.np*sizeof(float4));
+	d_Rand = (float *)malloc(Dparam.np*sizeof(float));
 
 	//partpos[50] = make_float4(0.0f, 1.0f, 5.0f, 0.2);
 	printf("...done.\n");
@@ -441,18 +429,18 @@ int main()
 	else
 	{
 		printf("No GPU found. Using CPU only\n");
-		GPUDEV = -1;
+		Dparam.GPUDEV = -1;
 	}
 
-	if (GPUDEV > nDevices && GPUDEV>0)
+	if (Dparam.GPUDEV > nDevices && Dparam.GPUDEV>0)
 	{
 		printf("Specified GPU Device not found, Using Device %i.\n",0);
-		GPUDEV = 0;
+		Dparam.GPUDEV = 0;
 	}
-	if (GPUDEV >= 0)
+	if (Dparam.GPUDEV >= 0)
 	{
 		printf("Allocating mem on GPU...");
-		CUDA_CHECK(cudaSetDevice(GPUDEV)); //Add error handling
+		CUDA_CHECK(cudaSetDevice(Dparam.GPUDEV)); //Add error handling
 		//If GPU available then copy set up GPU mem
 		
 

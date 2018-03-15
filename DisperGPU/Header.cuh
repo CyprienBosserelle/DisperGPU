@@ -1,7 +1,79 @@
+
+#ifndef DISPERGPU_H
+#define DISPERGPU_H
+
+#include "cuda_runtime.h"
+#include "device_launch_parameters.h"
+
+#include <stdio.h>
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <time.h>
+#include <string.h>
+#include <cmath>
+#include <fstream>
+#include <netcdf.h>
+#include <algorithm>
 #include <cuda.h>
 #include <cuda_runtime.h>
+#include <curand.h>
+#include <math.h>
+
 
 #define pi 3.14159265f
+
+// Class definitions
+class Param{
+public:
+	//Files
+	char ncfile[256]; //Should use strings here
+	char Uvarname[256];
+	char Vvarname[256];
+	char hhvarname[256];
+	char ncoutfile[256];
+	char seedfile[256];
+
+
+	int np;//Numer of particles
+	int partmode; // Particle model type: 0:test set up the model but do not run any loop
+	// 1: 2D, passive particle no buyancy taken into acount
+	// 2: Quasi 3D, buoyant/sinking particle advected with 2d depth averaged hydrodynamics, Log profile is assumed
+	// 3D: 3D model buoyant/sinking particle advected with 3d hydrodynamcis
+	
+	int nx, ny, nz, nt; //HD input may have a more complex structure with staggered grid 
+
+	
+	float hddt; // HD model tme step
+	int lev; //Level for 3D HD but 2D/Q3D particle model
+	int geocoord; //Geographic coordinate system switch 0 is metric 1 is degrees
+	int backswitch; // 0 run HD model forward 1 run the model backward
+	float Eh, Ev; // Eddy viscosity horizontale, vertical
+	float minrwdepth; // Minimum depth for using Eddy viscosity
+
+	int GPUDEV = 0; // GPU device in use  (default is 0, aka first available device from device query) negative value means force use of cpu and other positive value a dpecific GPU in a multi GPU system
+
+
+
+};
+
+class Control{
+public:
+	float totaltime; // needed to track total time as dt can vary
+	float nextouttime;
+	float outtime;
+	int stp, outstep, outtype; // Model step, output step, next output step, output file type
+
+	float dt, olddt; // particle model time step
+	int hdstep, hdstart, hdend; // HD model step, HD step start and HD step end
+	int SEED = 777; //Seed for random number generator
+
+
+
+};
+
+
+// Shared functions
 template <class T> const T& min(const T& a, const T& b);
 template <class T> const T& max(const T& a, const T& b);
 template <class T> const T& round(const T& a);
@@ -37,3 +109,7 @@ void writestep2nc(char outfile[], int nx, int ny, int np, float totaltime, float
 float isLeft(float P0x, float P0y, float P1x, float P1y, float P2x, float P2y);
 int cn_PnPoly(float Px, float Py, float* Vx, float *Vy, int n);
 int wn_PnPoly(float Px, float Py, float* Vx, float* Vy, int n);
+
+
+// End of global definition
+#endif
