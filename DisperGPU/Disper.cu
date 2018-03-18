@@ -212,7 +212,7 @@ void CPUstep()
 
 
 
-int main()
+int main(int argc, char **argv)
 {
 	//Model starts Here//
 
@@ -255,7 +255,8 @@ int main()
 
 
 	char opfile[] = "DisperGPU.dat";
-	
+	//add a function here
+	std::ifstream fs("DisperGPU.dat");
 	
 
 

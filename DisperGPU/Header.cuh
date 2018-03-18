@@ -6,7 +6,7 @@
 #include "device_launch_parameters.h"
 
 #include <stdio.h>
-
+#include <iostream>
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
@@ -21,18 +21,30 @@
 #include <math.h>
 
 
+#include <time.h>
+#include <string>
+
+#include <sstream>
+#include <iterator>
+#include <netcdf.h>
+#include <algorithm>
+#include <vector>
+#include <ctime>
+#include <random>
+#include <chrono>
+
 #define pi 3.14159265f
 
 // Class definitions
 class Param{
 public:
 	//Files
-	char ncfile[256]; //Should use strings here
-	char Uvarname[256];
-	char Vvarname[256];
-	char hhvarname[256];
-	char ncoutfile[256];
-	char seedfile[256];
+	std::string ncfile; //Should use strings here
+	std::string Uvarname;
+	std::string Vvarname;
+	std::string hhvarname;
+	std::string ncoutfile;
+	std::string seedfile;
 
 
 	int np;//Numer of particles
@@ -44,12 +56,12 @@ public:
 	int nx, ny, nz, nt; //HD input may have a more complex structure with staggered grid 
 
 	
-	float hddt; // HD model tme step
+	double hddt; // HD model tme step
 	int lev; //Level for 3D HD but 2D/Q3D particle model
 	int geocoord; //Geographic coordinate system switch 0 is metric 1 is degrees
 	int backswitch; // 0 run HD model forward 1 run the model backward
-	float Eh, Ev; // Eddy viscosity horizontale, vertical
-	float minrwdepth; // Minimum depth for using Eddy viscosity
+	double Eh, Ev; // Eddy viscosity horizontale, vertical
+	double minrwdepth; // Minimum depth for using Eddy viscosity
 
 	int GPUDEV = 0; // GPU device in use  (default is 0, aka first available device from device query) negative value means force use of cpu and other positive value a dpecific GPU in a multi GPU system
 
