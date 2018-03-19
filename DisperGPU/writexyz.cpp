@@ -15,12 +15,7 @@
 //along with this program.  If not, see <http://www.gnu.org/licenses/>.         //
 //////////////////////////////////////////////////////////////////////////////////
 
-#include <iostream>
-#include <string>
-#include <fstream>
-#include <stdio.h>
-#include <stdlib.h>
-#include <netcdf.h>
+
 #include "Header.cuh"
 using namespace std;
 //(xp,yp,zp,tp,xl,yl, npart,fileoutn)
@@ -51,7 +46,7 @@ void writexyz(int npart,int nx, int ny,float * xcoord, float * ycoord, float4 * 
 	}
 	fclose (ofile);
 }
-void creatncfile(char outfile[], int nx,int ny,int np,float *xval, float *yval,float totaltime,float *Nincel,float *cNincel,float *cTincel,float4 * PartPos)
+void creatncfile(std::string outfile, int nx,int ny,int np,float *xval, float *yval,float totaltime,float *Nincel,float *cNincel,float *cTincel,float4 * PartPos)
 {               
 	int status;
    	int ncid,xx_dim,yy_dim,time_dim,np_dim,px_dim;
@@ -85,7 +80,7 @@ void creatncfile(char outfile[], int nx,int ny,int np,float *xval, float *yval,f
 
 
 	//create the netcdf dataset
-	status = nc_create(outfile, NC_NOCLOBBER, &ncid);
+	status = nc_create(outfile.c_str(), NC_NOCLOBBER, &ncid);
 	
 	//Define dimensions: Name and length
 	
@@ -168,7 +163,7 @@ void creatncfile(char outfile[], int nx,int ny,int np,float *xval, float *yval,f
 	status = nc_close(ncid);  
 }
 
-void writestep2nc(char outfile[], int nx,int ny,int np, float totaltime,float *xval, float *yval, float *Nincel,float *cNincel,float * cTincel, float4 *PartPos)
+void writestep2nc(std::string outfile, int nx, int ny, int np, float totaltime, float *xval, float *yval, float *Nincel, float *cNincel, float * cTincel, float4 *PartPos)
 {
 	int status;
    	int ncid,time_dim,recid;
@@ -188,7 +183,7 @@ void writestep2nc(char outfile[], int nx,int ny,int np, float totaltime,float *x
 
 	static size_t pstart[] = { 0, 0, 0 };
 	static size_t pcount[] = { 1, 1, 6 };
-	status = nc_open(outfile, NC_WRITE, &ncid);
+	status = nc_open(outfile.c_str(), NC_WRITE, &ncid);
 	
 	//read id from time dimension
 	status = nc_inq_unlimdim(ncid, &recid);

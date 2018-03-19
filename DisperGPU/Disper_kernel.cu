@@ -15,7 +15,7 @@
 //along with this program.  If not, see <http://www.gnu.org/licenses/>.         //
 //////////////////////////////////////////////////////////////////////////////////
 
-
+#define pi 3.14159265f
 
 // declare texture reference for 2D float texture
 

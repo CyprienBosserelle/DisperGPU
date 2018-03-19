@@ -18,7 +18,7 @@
 #include "Header.cuh"
 
 
-extern "C" void readseedfile(char seedfile[],int npart,int nx,int ny, float *xcoord,float *ycoord, float4* &partpos)
+extern "C" void readseedfile(std::string seedfile,int npart,int nx,int ny, float *xcoord,float *ycoord, float4* &partpos)
 {
 	int seedtype;
 	//Read seed file
@@ -33,7 +33,7 @@ extern "C" void readseedfile(char seedfile[],int npart,int nx,int ny, float *xco
 	float pxi, pyj;
 
 	FILE * fseed;
-	fseed = fopen(seedfile, "r");
+	fseed = fopen(seedfile.c_str(), "r");
 	fscanf(fseed, "%*s %d\t%*s", &seedtype);
 
 	// define varible to be used in polygon seed

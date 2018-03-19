@@ -17,13 +17,7 @@
 
 
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <time.h>
-#include <string>
-#include <math.h>
-#include <fstream>
-#include <netcdf.h>
+
 #include "Header.cuh"
 
 // Define Global variables
@@ -51,7 +45,7 @@ template <class T> const T& round(const T& a)
   return floor( a + 0.5 );
   }
 
-void readgridsize(char ncfile[], char Uvar[], char Vvar[], char hhvar[],int &nt, int &nx, int &ny, float *&xcoord, float *&ycoord)
+void readgridsize(std::string ncfile, std::string Uvar, std::string Vvar, std::string hhvar, int &nt, int &nx, int &ny, float *&xcoord, float *&ycoord)
 {
 	//read the dimentions of grid, levels and time 
 	int status;
@@ -70,12 +64,12 @@ void readgridsize(char ncfile[], char Uvar[], char Vvar[], char hhvar[],int &nt,
 
 	//Open NC file
 	printf("Open file\n");
-	status =nc_open(ncfile,0,&ncid);
+	status =nc_open(ncfile.c_str(),0,&ncid);
 	if (status != NC_NOERR) handle_error(status);
 
 	//inquire variable by name
 	printf("Reading information aboout %s...",Uvar);
-	status = nc_inq_varid(ncid, Uvar, &varid);
+	status = nc_inq_varid(ncid, Uvar.c_str(), &varid);
 	if (status != NC_NOERR) 
 		handle_error(status);
 	
@@ -97,7 +91,7 @@ void readgridsize(char ncfile[], char Uvar[], char Vvar[], char hhvar[],int &nt,
 		//printf("dim:%d=%d\n", iddim, ddimU[iddim]);
 	}
 	printf(" %s...", Vvar);
-	status = nc_inq_varid(ncid, Vvar, &varid);
+	status = nc_inq_varid(ncid, Vvar.c_str(), &varid);
 	if (status != NC_NOERR)
 		handle_error(status);
 	
@@ -123,7 +117,7 @@ void readgridsize(char ncfile[], char Uvar[], char Vvar[], char hhvar[],int &nt,
 
 
 	printf(" %s...\n", hhvar);
-	status = nc_inq_varid(ncid, hhvar, &varid);
+	status = nc_inq_varid(ncid, hhvar.c_str(), &varid);
 	if (status != NC_NOERR)
 		handle_error(status);
 	
@@ -555,7 +549,7 @@ void readHDstepHYCOM(char ncfile[], char Uvar[], char Vvar[], int nx, int ny, in
 	printf("...done\n");
 }
 
-void readHDstep(char ncfile[], char Uvar[], char Vvar[], char hhvar[], int nx, int ny, int hdstep, int lev, float *&Uo, float *&Vo, float *&hho)
+void readHDstep(std::string ncfile, std::string Uvar, std::string Vvar, std::string hhvar, int nx, int ny, int hdstep, int lev, float *&Uo, float *&Vo, float *&hho)
 {
 	//
 	int status;
@@ -575,17 +569,17 @@ void readHDstep(char ncfile[], char Uvar[], char Vvar[], char hhvar[], int nx, i
 	static ptrdiff_t stridel[] = { 1, 1, 1 };
 
 	//Open NC file
-	status = nc_open(ncfile, 0, &ncid);
+	status = nc_open(ncfile.c_str(), 0, &ncid);
 	if (status != NC_NOERR) handle_error(status);
 
 	//status = nc_inq_varid (ncid, "u", &uu_id);
-	status = nc_inq_varid(ncid, Uvar, &uu_id);
+	status = nc_inq_varid(ncid, Uvar.c_str(), &uu_id);
 	if (status != NC_NOERR) handle_error(status);
 	//status = nc_inq_varid (ncid, "v", &vv_id);
-	status = nc_inq_varid(ncid, Vvar, &vv_id);
+	status = nc_inq_varid(ncid, Vvar.c_str(), &vv_id);
 	if (status != NC_NOERR) handle_error(status);
 
-	status = nc_inq_varid(ncid, hhvar, &hh_id);
+	status = nc_inq_varid(ncid, hhvar.c_str(), &hh_id);
 	if (status != NC_NOERR) handle_error(status);
 
 	status = nc_get_vara_float(ncid, uu_id, startl, countlu, Uo);

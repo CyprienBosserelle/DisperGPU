@@ -65,12 +65,93 @@ Param readparamstr(std::string line, Param param)
 		//std::cerr << "Bathymetry file found!" << std::endl;
 	}
 
+	// Netcdf file for hydrodynamics input. this could be a vector
+	parameterstr = "ncfile";
+	parametervalue = findparameter(parameterstr, line);
+	if (!parametervalue.empty())
+	{
+		param.ncfile = parametervalue;
+		//std::cerr << "Bathymetry file found!" << std::endl;
+	}
+
+	parameterstr = "Uvarname";
+	parametervalue = findparameter(parameterstr, line);
+	if (!parametervalue.empty())
+	{
+		param.Uvarname = parametervalue;
+		//std::cerr << "Bathymetry file found!" << std::endl;
+	}
+
+	parameterstr = "Vvarname";
+	parametervalue = findparameter(parameterstr, line);
+	if (!parametervalue.empty())
+	{
+		param.Vvarname = parametervalue;
+		//std::cerr << "Bathymetry file found!" << std::endl;
+	}
+
+	parameterstr = "hhvarname";
+	parametervalue = findparameter(parameterstr, line);
+	if (!parametervalue.empty())
+	{
+		param.hhvarname = parametervalue;
+		//std::cerr << "Bathymetry file found!" << std::endl;
+	}
+
+	parameterstr = "ncoutfile";
+	parametervalue = findparameter(parameterstr, line);
+	if (!parametervalue.empty())
+	{
+		param.ncoutfile = parametervalue;
+		//std::cerr << "Bathymetry file found!" << std::endl;
+	}
+
 	//
 	parameterstr = "gpudevice";
 	parametervalue = findparameter(parameterstr, line);
 	if (!parametervalue.empty())
 	{
 		param.GPUDEV = std::stoi(parametervalue);
+	}
+
+	parameterstr = "np";
+	parametervalue = findparameter(parameterstr, line);
+	if (!parametervalue.empty())
+	{
+		param.np = std::stoi(parametervalue);
+	}
+
+	parameterstr = "mode";
+	parametervalue = findparameter(parameterstr, line);
+	if (!parametervalue.empty())
+	{
+		param.partmode = std::stoi(parametervalue);
+	}
+
+	parameterstr = "level";
+	parametervalue = findparameter(parameterstr, line);
+	if (!parametervalue.empty())
+	{
+		param.lev = std::stoi(parametervalue);
+	}
+
+
+	
+	parameterstr = "geoswitch";
+	parametervalue = findparameter(parameterstr, line);
+	if (!parametervalue.empty())
+	{
+		param.geocoord = std::stoi(parametervalue);
+	}
+
+
+
+	//backswitch;
+	parameterstr = "backswitch";
+	parametervalue = findparameter(parameterstr, line);
+	if (!parametervalue.empty())
+	{
+		param.backswitch = std::stoi(parametervalue);
 	}
 
 	///////////////////////////////////////////////////////
@@ -83,7 +164,30 @@ Param readparamstr(std::string line, Param param)
 		param.hddt = std::stod(parametervalue);
 	}
 
+	//
+	parameterstr = "Eh";
+	parametervalue = findparameter(parameterstr, line);
+	if (!parametervalue.empty())
+	{
+		param.Eh = std::stod(parametervalue);
+	}
 
+	parameterstr = "Ev";
+	parametervalue = findparameter(parameterstr, line);
+	if (!parametervalue.empty())
+	{
+		param.Ev = std::stod(parametervalue);
+	}
+
+	//minrwdepth
+	parameterstr = "minrwdepth";
+	parametervalue = findparameter(parameterstr, line);
+	if (!parametervalue.empty())
+	{
+		param.Ev = std::stod(parametervalue);
+	}
+
+	return param;
 }
 
 
