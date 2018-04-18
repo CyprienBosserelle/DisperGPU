@@ -64,7 +64,7 @@ HDParam readgridsize(HDParam HD, float *&xcoord, float *&ycoord)
 
 	//Open NC file
 	printf("Open file\n");
-	status =nc_open(HD.ncfile.c_str(),0,&ncid);
+	status =nc_open(HD.ncfileU.c_str(),0,&ncid);
 	if (status != NC_NOERR) handle_error(status);
 
 	//inquire variable by name
@@ -90,7 +90,15 @@ HDParam readgridsize(HDParam HD, float *&xcoord, float *&ycoord)
 
 		//printf("dim:%d=%d\n", iddim, ddimU[iddim]);
 	}
+
+	status = nc_close(ncid);
+
+
 	printf(" %s...", HD.Vvarname.c_str());
+
+	status = nc_open(HD.ncfileV.c_str(), 0, &ncid);
+	if (status != NC_NOERR) handle_error(status);
+
 	status = nc_inq_varid(ncid, HD.Vvarname.c_str(), &varid);
 	if (status != NC_NOERR)
 		handle_error(status);
@@ -115,6 +123,10 @@ HDParam readgridsize(HDParam HD, float *&xcoord, float *&ycoord)
 		//printf("dim:%d=%d\n", iddim, ddimV[iddim]);
 	}
 
+	status = nc_close(ncid);
+
+	status = nc_open(HD.ncfileH.c_str(), 0, &ncid);
+	if (status != NC_NOERR) handle_error(status);
 
 	printf(" %s...\n", HD.Hvarname.c_str());
 	status = nc_inq_varid(ncid, HD.Hvarname.c_str(), &varid);
@@ -140,6 +152,8 @@ HDParam readgridsize(HDParam HD, float *&xcoord, float *&ycoord)
 
 		//printf("dim:%d=%d\n", iddim, ddimhh[iddim]);
 	}
+
+	
 
 	if (ndimsU != ndimsV || ndimsU<3){
 		printf("Variable dimension problems\n");
@@ -183,6 +197,7 @@ HDParam readgridsize(HDParam HD, float *&xcoord, float *&ycoord)
 	}
 
 	//ycoord
+
 	status = nc_inq_dimname(ncid, ycovar, coordname);
 	if (status != NC_NOERR) handle_error(status);
 
@@ -570,25 +585,43 @@ void readHDstep(HDParam HD, int steptoread, float *&Uo, float *&Vo, float *&hho)
 	static ptrdiff_t stridel[] = { 1, 1, 1 };
 
 	//Open NC file
-	status = nc_open(HD.ncfile.c_str(), 0, &ncid);
+	status = nc_open(HD.ncfileU.c_str(), 0, &ncid);
 	if (status != NC_NOERR) handle_error(status);
 
 	//status = nc_inq_varid (ncid, "u", &uu_id);
 	status = nc_inq_varid(ncid, HD.Uvarname.c_str(), &uu_id);
 	if (status != NC_NOERR) handle_error(status);
+
+	status = nc_get_vara_float(ncid, uu_id, startl, countlu, Uo);
+	if (status != NC_NOERR) handle_error(status);
+
+	status = nc_close(ncid);
+
+
+	status = nc_open(HD.ncfileV.c_str(), 0, &ncid);
+	if (status != NC_NOERR) handle_error(status);
 	//status = nc_inq_varid (ncid, "v", &vv_id);
 	status = nc_inq_varid(ncid, HD.Vvarname.c_str(), &vv_id);
+	if (status != NC_NOERR) handle_error(status);
+
+	status = nc_get_vara_float(ncid, vv_id, startl, countlv, Vo);
+	if (status != NC_NOERR) handle_error(status);
+
+	status = nc_close(ncid);
+
+
+	status = nc_open(HD.ncfileH.c_str(), 0, &ncid);
 	if (status != NC_NOERR) handle_error(status);
 
 	status = nc_inq_varid(ncid, HD.Hvarname.c_str(), &hh_id);
 	if (status != NC_NOERR) handle_error(status);
 
-	status = nc_get_vara_float(ncid, uu_id, startl, countlu, Uo);
-	if (status != NC_NOERR) handle_error(status);
-	status = nc_get_vara_float(ncid, vv_id, startl, countlv, Vo);
-	if (status != NC_NOERR) handle_error(status);
+	
+	
 	status = nc_get_vara_float(ncid, hh_id, startl, countlv, hho);
 	if (status != NC_NOERR) handle_error(status);
+
+	status = nc_close(ncid);
 
 	//Set land flag to 0.0m/s to allow particle to stick to the coast
 
@@ -618,7 +651,7 @@ void readHDstep(HDParam HD, int steptoread, float *&Uo, float *&Vo, float *&hho)
 
 
 
-	status = nc_close(ncid);
+	
 	printf("...done\n");
 }
 
