@@ -1,24 +1,8 @@
-#include "cuda_runtime.h"
-#include "device_launch_parameters.h"
 
-#include <stdio.h>
-
-#include <stdio.h>
-#include <stdlib.h>
-#include <time.h>
-#include <string.h>
-#include <cmath>
-#include <fstream>
-#include <netcdf.h>
-#include <algorithm>
-#include <cuda.h>
-#include <cuda_runtime.h>
-#include <curand.h>
-#include <math.h>
 #include "Header.cuh"
 
 
-extern "C" void readseedfile(char seedfile[],int npart,int nx,int ny, float *xcoord,float *ycoord, float4* &partpos)
+extern "C" void readseedfile(std::string seedfile,int npart,int nx,int ny, float *xcoord,float *ycoord, float4* &partpos)
 {
 	int seedtype;
 	//Read seed file
@@ -33,7 +17,7 @@ extern "C" void readseedfile(char seedfile[],int npart,int nx,int ny, float *xco
 	float pxi, pyj;
 
 	FILE * fseed;
-	fseed = fopen(seedfile, "r");
+	fseed = fopen(seedfile.c_str(), "r");
 	fscanf(fseed, "%*s %d\t%*s", &seedtype);
 
 	// define varible to be used in polygon seed

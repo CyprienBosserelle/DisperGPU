@@ -78,23 +78,27 @@ void CUDA_CHECK(cudaError CUDerr)
 
 	}
 }
-void GPUstep()
+void GPUstep(Param Dparam, HDParam HD)
 {
+	int nx = HD.nx;
+	int ny = HD.ny;
+	int np = Dparam.np;
+
 	dim3 blockDimHD(16, 16, 1);
 	//dim3 gridDimHD(ceil(max(netau,netav)*max(nxiu,nxiv) / (float)blockDimHD.x), 1, 1);
 	dim3 gridDimHD((int)ceil((float)nx / (float)blockDimHD.x), (int)ceil((float)ny / (float)blockDimHD.y), 1);
 
-	if (totaltime >= hddt*(hdstep - hdstart + 1))//+1 because we only read the next step when time exeed the previous next step
+	if (Dparam.totaltime >= HD.hddt*(HD.hdstep - HD.hdstart + 1))//+1 because we only read the next step when time exceed the previous next step
 	{
 		//Read next step
 		printf("Reading Next step\n");
-		hdstep++;
+		HD.hdstep++;
 
-		int steptoread = hdstep;
+		int steptoread = HD.hdstep;
 
-		if (backswitch>0)
+		if (Dparam.backswitch>0)
 		{
-			steptoread = hdend - hdstep;
+			steptoread = HD.hdend - HD.hdstep;
 		}
 
 		NextHDstep<<<gridDimHD, blockDimHD, 0 >>>(nx, ny, Uo_g, Un_g);
@@ -108,7 +112,7 @@ void GPUstep()
 
 		
 		//readHDstepHYCOM(ncfile, Uvarname, Vvarname, nx, ny, steptoread, lev, Un, Vn, hhn);
-		readHDstep(ncfile, Uvarname, Vvarname, hhvarname, nx, ny, steptoread, lev, Un, Vn, hhn);
+		readHDstep(HD, steptoread, Un, Vn, hhn);
 
 		CUDA_CHECK(cudaMemcpy(Un_g, Un, nx*ny*sizeof(float), cudaMemcpyHostToDevice));
 		CUDA_CHECK(cudaMemcpy(Vn_g, Vn, nx*ny*sizeof(float), cudaMemcpyHostToDevice));
@@ -124,10 +128,10 @@ void GPUstep()
 	//printf("interp HD\n");
 	//int interpstep = hdstep - hdstart + 1;
 	//InterpstepCPU(nx, ny, backswitch, hdstep, totaltime, hddt, Ux, Uo, Un);
-	HD_interp <<< gridDimHD, blockDimHD, 0 >>>(nx, ny, backswitch, hdstep - hdstart, totaltime, hddt, Uo_g, Un_g, Ux_g);
+	HD_interp <<< gridDimHD, blockDimHD, 0 >>>(nx, ny, Dparam.backswitch, HD.hdstep - HD.hdstart, Dparam.totaltime, HD.hddt, Uo_g, Un_g, Ux_g);
 	CUDA_CHECK(cudaDeviceSynchronize());
 
-	HD_interp << <gridDimHD, blockDimHD, 0 >>>(nx, ny, backswitch, hdstep - hdstart, totaltime, hddt, Vo_g, Vn_g, Vx_g);
+	HD_interp << <gridDimHD, blockDimHD, 0 >>>(nx, ny, Dparam.backswitch, HD.hdstep - HD.hdstart, Dparam.totaltime, HD.hddt, Vo_g, Vn_g, Vx_g);
 	CUDA_CHECK(cudaDeviceSynchronize());
 
 	//HD_interp <<<gridDimHD, blockDimHD, 0 >>>(nx, ny, backswitch, hdstep, totaltime, hddt, hho_g, hhn_g, hhx_g);
@@ -154,7 +158,7 @@ void GPUstep()
 
 	//Calculate particle step
 
-	updatepartpos <<<gridDim, blockDim, 0 >>>(np, dt, Eh, d_Rand, partpos_g);
+	updatepartpos <<<gridDim, blockDim, 0 >>>(np, Dparam.dt, Dparam.Eh, d_Rand, partpos_g);
 	CUDA_CHECK(cudaDeviceSynchronize());
 
 	//ij2lonlat <<<gridDim, blockDim, 0 >> >(np, xl_g, yl_g, xp_g, yp_g);
@@ -167,42 +171,49 @@ void GPUstep()
 
 
 
-void CPUstep()
+void CPUstep(Param Dparam, HDParam HD)
 {
-	if (totaltime >= hddt*(hdstep - hdstart + 1))//+1 because we only read the next step when time exeed the previous next step
+	int nx = HD.nx;
+	int ny= HD.ny;
+	int np = Dparam.np;
+
+	if (Dparam.totaltime >= HD.hddt*(HD.hdstep - HD.hdstart + 1))//+1 because we only read the next step when time exeed the previous next step
 	{
 		//Read next step
 
-		hdstep++;
+		HD.hdstep++;
 
-		int steptoread = hdstep;
+		int steptoread = HD.hdstep;
 
-		if (backswitch>0)
+		if (Dparam.backswitch>0)
 		{
-			steptoread = hdend - hdstep;
+			steptoread = HD.hdend - HD.hdstep;
 		}
 
-		NextstepCPU(nx,ny, Uo, Vo, hho, Un, Vn, hhn);
+
+
+
+		NextstepCPU(nx, ny, Uo, Vo, hho, Un, Vn, hhn);
 		//readHDstepHYCOM(ncfile, Uvarname, Vvarname, nx, ny, steptoread, lev, Un, Vn, hhn);
-		readHDstep(ncfile, Uvarname, Vvarname, hhvarname, nx, ny, steptoread, lev, Un, Vn, hhn);
+		readHDstep(HD, steptoread,Un, Vn, hhn);
 
 
 	}
 
 	//Interpolate U vel
-	InterpstepCPU( nx, ny, backswitch, hdstep, totaltime, hddt, Ux, Uo, Un);
+	InterpstepCPU( nx, ny, Dparam.backswitch, HD.hdstep, Dparam.totaltime, HD.hddt, Ux, Uo, Un);
 
 	//Interpolate V vel
-	InterpstepCPU(nx, ny, backswitch, hdstep, totaltime, hddt, Vx, Vo, Vn);
+	InterpstepCPU(nx, ny, Dparam.backswitch, HD.hdstep, Dparam.totaltime, HD.hddt, Vx, Vo, Vn);
 
 	//Interpolate Water depth
-	InterpstepCPU(nx, ny, 1.0f, hdstep, totaltime, hddt, hhx, hho, hhn);
+	InterpstepCPU(nx, ny, 1.0f, HD.hdstep, Dparam.totaltime, HD.hddt, hhx, hho, hhn);
 
 	// Reseed random number
 	//not needed here?
 
 	// Update particle position
-	updatepartposCPU(nx, ny, np, dt, Eh, Ux, Vx, hhx, distX, distY, partpos);
+	updatepartposCPU(nx, ny, np, Dparam.dt, Dparam.Eh, Ux, Vx, hhx, distX, distY, partpos);
 
 	//update Nincel
 	calcNincelCPU(np, nx, ny, partpos, Nincel, cNincel, cTincel);
@@ -233,84 +244,85 @@ int main()
 
 	startcputime = clock();
 	Param Dparam;
-	Control Dcontrol;
+	HDParam HD;
+
 
 	// Initialise totaltime
-	Dcontrol.totaltime = 0.0;
-	Dcontrol.nextouttime = 0.0;
+	Dparam.totaltime = 0.0;
+	Dparam.nextouttime = 0.0;
+	// Reset the log file 
+	FILE * flog;
+	flog = fopen("DGPU_log.txt", "w");
+	fclose(flog);
 
-	char logfilename[] = "DisperGPU.log";
-	logfile = fopen(logfilename, "w");
-	fprintf(logfile, "DisperGPU v0.0\n");
+	//Logfile header
+	time_t rawtime, dstart;
+	struct tm * timeinfo;
+	char buffer[80];
 
+	time(&rawtime);
+	timeinfo = localtime(&rawtime);
+
+	strftime(buffer, 80, "%d-%m-%Y %H:%M:%S", timeinfo);
+	std::string strtimenow(buffer);
+	write_text_to_log_file("#################################");
+	write_text_to_log_file("DisperGPU v0.0");
+	write_text_to_log_file("#################################");
+	write_text_to_log_file("model started at " + strtimenow);
+	
 
 	//////////////////////////////////////////////////////
 	/////             Read Operational file           /////
 	//////////////////////////////////////////////////////
-	fprintf(logfile, "Reading DisperGPU.dat...\t");
+	write_text_to_log_file("Reading DisperGPU.dat...");
 	printf( "Reading DisperGPU.dat\n");
 
 
+	std::ifstream fs("DisperGPU.dat");
 
-
-
-	char opfile[] = "DisperGPU.dat";
-	
-	
-
-
-	FILE * fop;
-	fop = fopen(opfile, "r");
-
-	if (fop == NULL)
-	{
-		fprintf(logfile, "Error opening DisperGPU.dat: %s\n", strerror(errno));
-		perror("Error opening DisperGPU.dat: ");
-
-		exit(-1);
+	if (fs.fail()) {
+		std::cerr << "XBG_param.txt file could not be opened" << std::endl;
+		write_text_to_log_file("ERROR: XBG_param.txt file could not be opened...use this log file to create a file named XBG_param.txt");
+		SaveParamtolog(Dparam,HD);
+		exit(1);
 	}
-	
+	// Read and interpret each line of the XBG_param.txt
+	std::string line;
+	while (std::getline(fs, line))
+	{
+		//std::cout << line << std::endl;
 
-	
-	fscanf(fop, "%*s %s\t%*s", &Dparam.ncfile); //HD file name should have U V velocity and depth
-	fscanf(fop, "%s\t%*s", &Dparam.Uvarname);
-	fscanf(fop, "%s\t%*s", &Dparam.Vvarname);
-	fscanf(fop, "%s\t%*s", &Dparam.hhvarname);
-	fscanf(fop, "%f\t%*s", &Dparam.hddt);
-	fscanf(fop, "%d,%d\t%*s", &Dparam.hdstart, &Dparam.hdend);
-	fscanf(fop, "%d\t%*s", &Dparam.lev);
-	fscanf(fop, "%d\t%*s", &Dparam.geocoord);
-	fscanf(fop, "%d\t%*s", &Dparam.backswitch);
-	fscanf(fop, "%d\t%*s", &Dparam.partmode);
-	fscanf(fop, "%u\t%*s", &Dparam.np);
-	fscanf(fop, "%f\t%*s", &Dcontrol.dt);
-	fscanf(fop, "%f\t%*s", &Dparam.Eh);
-	fscanf(fop, "%f\t%*s", &Dparam.Ev);
-	fscanf(fop, "%f\t%*s", &Dparam.minrwdepth);
-	fscanf(fop, "%s\t%*s", &Dparam.seedfile);
-	//fscanf(fop, "%d\t%*s", &GPUDEV);
+		//Get param or skip empty lines
+		if (!line.empty() && line.substr(0, 1).compare("#") != 0)
+		{
+			Dparam = readparamstr(line, Dparam);
+			HD = readHDparamstr(line, HD);
+			//std::cout << line << std::endl;
+		}
 
-	//fscanf(fop, "%d\t%*s", &outtype);
-	fscanf(fop, "%f\t%*s", &Dcontrol.outtime);
-	fscanf(fop, "%s\t%*s", &Dparam.ncoutfile);
+	}
+	fs.close();
 
-	fclose(fop);
 
-	fprintf(logfile, "Complete\n");
-	fprintf(logfile, "Reading netCDF file : %s...\n", Dparam.ncfile);
-	printf("Reading netCDF file: %s...\n", Dparam.ncfile);
+
+
+
+
+	write_text_to_log_file("Complete\n");
+	write_text_to_log_file("Reading netCDF file :   "+ HD.ncfile);
+	printf("Reading netCDF file: %s...\n", HD.ncfile);
 	//readgridsizeHYCOM(ncfile, Uvarname, Vvarname, nt, nx, ny, xcoord, ycoord);
-	readgridsize(Dparam.ncfile, Dparam.Uvarname, Dparam.Vvarname, Dparam.hhvarname, Dparam.nt, Dparam.nx, Dparam.ny, xcoord, ycoord);
+	HD=readgridsize(HD, xcoord, ycoord);
 
 
-	fprintf(logfile, "\t nx=%d\tny=%d\tnt=%d\n", Dparam.nx, Dparam.ny, Dparam.nt);
-	printf("\t nx=%d\tny=%d\tnt=%d\n", Dparam.nx, Dparam.ny, Dparam.nt);
-	fprintf(logfile, "...done\n");
+	write_text_to_log_file("\t nx=" + std::to_string(HD.nx) + "\tny=" + std::to_string(HD.ny) + "\tnt=" + std::to_string(HD.nt));
+	printf("\t nx=%d\tny=%d\tnt=%d\n", HD.nx, HD.ny, HD.nt);
+	write_text_to_log_file("...done\n");
 	printf("...done\n");
 
-	int nx = Dparam.nx;
-	int ny = Dparam.ny;
-	int nt = Dparam.nt;
+	int nx = HD.nx;
+	int ny = HD.ny;
+	int nt = HD.nt;
 
 
 	//set up CPU mem
@@ -355,32 +367,32 @@ int main()
 	printf("...done\n");
 
 	printf("Calculate distance array... ");
-	CalcDistXY(nx, ny, Dparam.geocoord, xcoord, ycoord, distX,distY);
+	CalcDistXY(nx, ny, HD.geocoord, xcoord, ycoord, distX,distY);
 	printf("...done\n");
 	//Calculate first HD step
 	//outstep=10;
-	Dcontrol.stp = 0;//hdstart*hddt/dt;
-	Dcontrol.hdstep = Dcontrol.hdstart;
+	Dparam.stp = 0;//hdstart*hddt/dt;
+	HD.hdstep = HD.hdstart;
 
 
 	
 	//printf("HD step:%d\n ",hdstep);
-	if (Dcontrol.hdend == 0)
+	if (HD.hdend == 0)
 	{
-		Dcontrol.hdend = Dparam.nt - 1;
+		HD.hdend = HD.nt - 1;
 	}
 
-	if (Dcontrol.outtime == 0.0f)
+	if (Dparam.outtime == 0.0f)
 	{
-		Dcontrol.outtime = Dparam.hddt*Dcontrol.hdend;
+		Dparam.outtime = HD.hddt*HD.hdend;
 	}
-	Dcontrol.nextouttime = Dcontrol.outtime;
+	Dparam.nextouttime = Dparam.outtime;
 
-	int steptoread = Dcontrol.hdstep;
+	int steptoread = HD.hdstep;
 
 	if (Dparam.backswitch>0)
 	{
-		steptoread = Dcontrol.hdend - Dcontrol.hdstep;
+		steptoread = HD.hdend - HD.hdstep;
 	}
 
 	
@@ -394,17 +406,17 @@ int main()
 	//Also read next step?
 	//readHDstepHYCOM(ncfile, Uvarname, Vvarname, nx, ny, steptoread+1, lev, Un, Vn, hhn);
 
-	readHDstep(Dparam.ncfile, Dparam.Uvarname, Dparam.Vvarname, Dparam.hhvarname, Dparam.nx, Dparam.ny, steptoread, Dparam.lev, Uo, Vo, hho);
-
+	readHDstep(HD,steptoread, Uo, Vo, hho);
+	
 	//Also read next step?
-	readHDstep(Dparam.ncfile, Dparam.Uvarname, Dparam.Vvarname, Dparam.hhvarname, Dparam.nx, Dparam.ny, steptoread + 1, Dparam.lev, Un, Vn, hhn);
+	readHDstep(HD, steptoread + 1,  Un, Vn, hhn);
 
 	//Calculate best dt
-	if (!(Dcontrol.dt > 0.0f))// if dt==0.0
+	if (!(Dparam.dt > 0.0f))// if dt==0.0
 	{
-		Calcmaxstep(nx, ny, Dcontrol.dt, Dparam.hddt, Uo, Vo, Un, Vn, distX, distY);
+		Calcmaxstep(nx, ny, Dparam.dt, HD.hddt, Uo, Vo, Un, Vn, distX, distY);
 	}
-	Dcontrol.olddt = Dcontrol.dt;
+	Dparam.olddt = Dparam.dt;
 	printf("Allocating CPU memory for particle position... ");
 	//Initialise particles on CPU
 	partpos = (float4 *)malloc(Dparam.np*sizeof(float4));
@@ -444,7 +456,7 @@ int main()
 		//If GPU available then copy set up GPU mem
 		
 
-		CUDA_CHECK(cudaMalloc((void **)&partpos_g, np*sizeof(float4)));
+		CUDA_CHECK(cudaMalloc((void **)&partpos_g, Dparam.np*sizeof(float4)));
 
 		CUDA_CHECK(cudaMalloc((void **)&Uo_g, nx*ny* sizeof(float)));
 		CUDA_CHECK(cudaMalloc((void **)&Un_g, nx*ny* sizeof(float)));
@@ -464,7 +476,7 @@ int main()
 		// Loading random number generator
 		curandCreateGenerator(&gen, CURAND_RNG_PSEUDO_DEFAULT);
 
-		CUDA_CHECK(cudaMalloc((void **)&d_Rand, np*sizeof(float)));
+		CUDA_CHECK(cudaMalloc((void **)&d_Rand, Dparam.np*sizeof(float)));
 
 		printf("Transfert vectors to GPU memory... ");
 		CUDA_CHECK(cudaMemcpy(Uo_g, Uo, nx*ny*sizeof(float), cudaMemcpyHostToDevice));
@@ -479,7 +491,7 @@ int main()
 		CUDA_CHECK(cudaMemcpy(cNincel_g, Nincel, nx*ny*sizeof(float), cudaMemcpyHostToDevice));
 		CUDA_CHECK(cudaMemcpy(cTincel_g, Nincel, nx*ny*sizeof(float), cudaMemcpyHostToDevice));
 
-		CUDA_CHECK(cudaMemcpy(partpos_g, partpos, np*sizeof(float4), cudaMemcpyHostToDevice));
+		CUDA_CHECK(cudaMemcpy(partpos_g, partpos, Dparam.np*sizeof(float4), cudaMemcpyHostToDevice));
 
 		//CUDA_CHECK(cudaMemcpy(partpos_g, partpos, np*sizeof(float4), cudaMemcpyHostToDevice));
 		//done later
@@ -487,7 +499,7 @@ int main()
 		// Loading random number generator
 		curandCreateGenerator(&gen, CURAND_RNG_PSEUDO_DEFAULT);
 
-		CUDA_CHECK(cudaMalloc((void **)&d_Rand, np*sizeof(float)));
+		CUDA_CHECK(cudaMalloc((void **)&d_Rand, Dparam.np*sizeof(float)));
 
 		printf(" ...done\n");
 
@@ -570,81 +582,81 @@ int main()
 
 	//read seed file //calculate seed position on the GPU if available
 	
-	readseedfile(seedfile, np, nx, ny, xcoord, ycoord, partpos);
+	readseedfile(Dparam.seedfile, Dparam.np, nx, ny, xcoord, ycoord, partpos);
 	//Output seed information for sanity checks
-	writexyz(np, nx, ny, xcoord, ycoord, partpos, "OutSeed_000T.xyz");
+	writexyz(Dparam.np, nx, ny, xcoord, ycoord, partpos, "OutSeed_000T.xyz");
 	//writexyz(xp, yp, zp, tp, xl, yl, npart, fileoutn);
 	//create netcdf file
 	
-	creatncfile(ncoutfile, nx, ny, np, xcoord, ycoord, 0.0f, Nincel, cNincel, cTincel, partpos);
+	creatncfile(Dparam.ncoutfile, nx, ny, Dparam.np, xcoord, ycoord, 0.0f, Nincel, cNincel, cTincel, partpos);
 
 
 	//Run CPU/GPU loop
-	totaltime = 0.0f;
+	Dparam.totaltime = 0.0f;
 	
-	if (partmode > 0)
+	if (Dparam.partmode > 0)
 	{
-		if (GPUDEV < 0) //CPU mainloop
+		if (Dparam.GPUDEV < 0) //CPU mainloop
 		{
-			printf("Model starting using CPU. dt=%f; \n", dt);
-			printf("step %f of %f\n", totaltime, hddt*(hdend - hdstart));
-			while ((hddt*hdend - totaltime) > 0.0f)
+			printf("Model starting using CPU. dt=%f; \n", Dparam.dt);
+			printf("step %f of %f\n", Dparam.totaltime, HD.hddt*(HD.hdend - HD.hdstart));
+			while ((HD.hddt*HD.hdend - Dparam.totaltime) > 0.0f)
 			{
-				dt = min(dt, nextouttime - totaltime);
-				CPUstep();
-				totaltime = totaltime + dt;
-				stp++;
+				Dparam.dt = min(Dparam.dt, Dparam.nextouttime - Dparam.totaltime);
+				CPUstep(Dparam,HD);
+				Dparam.totaltime = Dparam.totaltime + Dparam.dt;
+				Dparam.stp++;
 
-				if ((nextouttime - totaltime) < 0.001f) // Round off error checking
+				if ((Dparam.nextouttime - Dparam.totaltime) < 0.00001f) // Round off error checking
 				{
 					//WriteoutCPU();
 					char fileoutn[15];
-					sprintf(fileoutn, "Part_%d.xyz", stp);
-					writexyz(np, nx, ny, xcoord, ycoord, partpos, fileoutn);
+					sprintf(fileoutn, "Part_%d.xyz", Dparam.stp);
+					writexyz(Dparam.np, nx, ny, xcoord, ycoord, partpos, fileoutn);
 					//writestep2nc(ncoutfile, nx, ny, totaltime, Nincel, cNincel, cTincel);
-					writestep2nc(ncoutfile, nx, ny, np, totaltime, xcoord, ycoord, Nincel, cNincel, cTincel, partpos);
-					nextouttime = nextouttime + outtime;
-					dt = olddt;
+					writestep2nc(Dparam.ncoutfile, nx, ny, Dparam.np, Dparam.totaltime, xcoord, ycoord, Nincel, cNincel, cTincel, partpos);
+					Dparam.nextouttime = Dparam.nextouttime + Dparam.outtime;
+					Dparam.dt = Dparam.olddt;
 					//reset Nincel 
 					resetNincelCPU(nx, ny, Nincel);
 				}
 
 
 			}
-			printf("Model Completed\n Total Number of step:%d\t total nuber of outputs steps:%d\n", stp, 0);
+			printf("Model Completed\n Total Number of step:%d\t total nuber of outputs steps:%d\n", Dparam.stp, 0);
 
 		}
 		else //GPU main loop
 		{
 			//Initial particle position transfert to GPU
 			printf("Copy Particle position to GPU.\n");
-			CUDA_CHECK(cudaMemcpy(partpos_g, partpos, np*sizeof(float4), cudaMemcpyHostToDevice));
+			CUDA_CHECK(cudaMemcpy(partpos_g, partpos, Dparam.np*sizeof(float4), cudaMemcpyHostToDevice));
 
 			printf("Model starting using GPU.\n");
-			while ((hddt*hdend - totaltime) > 0.0f)
+			while ((HD.hddt*HD.hdend - Dparam.totaltime) > 0.0f)
 			{
-				dt = min(dt, nextouttime - totaltime);
+				Dparam.dt = min(Dparam.dt, Dparam.nextouttime - Dparam.totaltime);
 				//printf("dt=%f.\n",dt);
-				GPUstep();
-				totaltime = totaltime + dt;
-				stp++;
+				GPUstep(Dparam,HD);
+				Dparam.totaltime = Dparam.totaltime + Dparam.dt;
+				Dparam.stp++;
 
-				if ((nextouttime - totaltime) < 0.001f) // Round off error checking
+				if ((Dparam.nextouttime - Dparam.totaltime) < 0.001f) // Round off error checking
 				{
 					//WriteoutCPU();
 					char fileoutn[15];
-					sprintf(fileoutn, "Part_%d.xyz", stp);
+					sprintf(fileoutn, "Part_%d.xyz", Dparam.stp);
 					//writexyz(np, nx, ny, xcoord, ycoord, partpos, fileoutn);
 					//writestep2nc(ncoutfile, nx, ny, totaltime, Nincel, cNincel, cTincel);
-					CUDA_CHECK(cudaMemcpy(partpos, partpos_g, np*sizeof(float4), cudaMemcpyDeviceToHost));
+					CUDA_CHECK(cudaMemcpy(partpos, partpos_g, Dparam.np*sizeof(float4), cudaMemcpyDeviceToHost));
 					CUDA_CHECK(cudaMemcpy(Nincel, Nincel_g, nx*ny*sizeof(float), cudaMemcpyDeviceToHost));
 					CUDA_CHECK(cudaMemcpy(cNincel, cNincel_g, nx*ny*sizeof(float), cudaMemcpyDeviceToHost));
 					CUDA_CHECK(cudaMemcpy(cTincel, cTincel_g, nx*ny*sizeof(float), cudaMemcpyDeviceToHost));
 
 
-					writestep2nc(ncoutfile, nx, ny, np, totaltime, xcoord, ycoord, Nincel, cNincel, cTincel, partpos);
-					nextouttime = nextouttime + outtime;
-					dt = olddt;
+					writestep2nc(Dparam.ncoutfile, nx, ny, Dparam.np, Dparam.totaltime, xcoord, ycoord, Nincel, cNincel, cTincel, partpos);
+					Dparam.nextouttime = Dparam.nextouttime + Dparam.outtime;
+					Dparam.dt = Dparam.olddt;
 					//reset Nincel 
 					resetNincelCPU(nx, ny, Nincel);
 				}
@@ -655,7 +667,7 @@ int main()
 	}
 	//Close and clean up
     
-	fclose(logfile);
+	///fclose(logfile);
     return 0;
 }
 

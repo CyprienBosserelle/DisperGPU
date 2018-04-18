@@ -17,13 +17,7 @@
 
 
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <time.h>
-#include <string>
-#include <math.h>
-#include <fstream>
-#include <netcdf.h>
+
 #include "Header.cuh"
 
 // Define Global variables
@@ -51,7 +45,7 @@ template <class T> const T& round(const T& a)
   return floor( a + 0.5 );
   }
 
-void readgridsize(char ncfile[], char Uvar[], char Vvar[], char hhvar[],int &nt, int &nx, int &ny, float *&xcoord, float *&ycoord)
+HDParam readgridsize(HDParam HD, float *&xcoord, float *&ycoord)
 {
 	//read the dimentions of grid, levels and time 
 	int status;
@@ -70,12 +64,12 @@ void readgridsize(char ncfile[], char Uvar[], char Vvar[], char hhvar[],int &nt,
 
 	//Open NC file
 	printf("Open file\n");
-	status =nc_open(ncfile,0,&ncid);
+	status =nc_open(HD.ncfile.c_str(),0,&ncid);
 	if (status != NC_NOERR) handle_error(status);
 
 	//inquire variable by name
-	printf("Reading information aboout %s...",Uvar);
-	status = nc_inq_varid(ncid, Uvar, &varid);
+	printf("Reading information about %s...",HD.Uvarname.c_str());
+	status = nc_inq_varid(ncid, HD.Uvarname.c_str(), &varid);
 	if (status != NC_NOERR) 
 		handle_error(status);
 	
@@ -96,8 +90,8 @@ void readgridsize(char ncfile[], char Uvar[], char Vvar[], char hhvar[],int &nt,
 
 		//printf("dim:%d=%d\n", iddim, ddimU[iddim]);
 	}
-	printf(" %s...", Vvar);
-	status = nc_inq_varid(ncid, Vvar, &varid);
+	printf(" %s...", HD.Vvarname.c_str());
+	status = nc_inq_varid(ncid, HD.Vvarname.c_str(), &varid);
 	if (status != NC_NOERR)
 		handle_error(status);
 	
@@ -122,8 +116,8 @@ void readgridsize(char ncfile[], char Uvar[], char Vvar[], char hhvar[],int &nt,
 	}
 
 
-	printf(" %s...\n", hhvar);
-	status = nc_inq_varid(ncid, hhvar, &varid);
+	printf(" %s...\n", HD.Hvarname.c_str());
+	status = nc_inq_varid(ncid, HD.Hvarname.c_str(), &varid);
 	if (status != NC_NOERR)
 		handle_error(status);
 	
@@ -152,7 +146,7 @@ void readgridsize(char ncfile[], char Uvar[], char Vvar[], char hhvar[],int &nt,
 	}
 	
 
-	nt = ddimV[0];
+	HD.nt = ddimV[0];
 	if (ndimsU > 3){
 		printf("U Variable is 4D\n");
 		nlev = ddimV[1];
@@ -160,18 +154,18 @@ void readgridsize(char ncfile[], char Uvar[], char Vvar[], char hhvar[],int &nt,
 
 	if (ndimshh > 2)
 	{
-		ny = ddimhh[1];
-		nx = ddimhh[2];
+		HD.ny = ddimhh[1];
+		HD.nx = ddimhh[2];
 	}
 	else
 	{
-		ny = ddimhh[0];
-		nx = ddimhh[1];
+		HD.ny = ddimhh[0];
+		HD.nx = ddimhh[1];
 	}
 	
 	//allocate
-	xcoord = (float *)malloc(nx*ny*sizeof(float));
-	ycoord = (float *)malloc(nx*ny*sizeof(float));
+	xcoord = (float *)malloc(HD.nx*HD.ny*sizeof(float));
+	ycoord = (float *)malloc(HD.nx*HD.ny*sizeof(float));
 	
 	//inquire variable name for x dimension
 	//aka x dim of hh
@@ -201,18 +195,18 @@ void readgridsize(char ncfile[], char Uvar[], char Vvar[], char hhvar[],int &nt,
 	if (ndims < 2)
 	{
 		float * ytempvar;
-		ytempvar = (float *)malloc(ny*sizeof(float));
+		ytempvar = (float *)malloc(HD.ny*sizeof(float));
 		size_t start[] = { 0};
-		size_t count[] = { ny};
+		size_t count[] = { HD.ny};
 		status = nc_get_vara_float(ncid, varid, start, count, ytempvar);
 		if (status != NC_NOERR) handle_error(status);
 
-		for (int i = 0; i<nx; i++)
+		for (int i = 0; i<HD.nx; i++)
 		{
-			for (int j = 0; j<ny; j++)
+			for (int j = 0; j<HD.ny; j++)
 			{
 				
-				ycoord[i + j*nx] = ytempvar[j];
+				ycoord[i + j*HD.nx] = ytempvar[j];
 				
 			}
 		}
@@ -220,7 +214,7 @@ void readgridsize(char ncfile[], char Uvar[], char Vvar[], char hhvar[],int &nt,
 	else
 	{
 		size_t start[] = { 0, 0 };
-		size_t count[] = { ny, nx };
+		size_t count[] = { HD.ny, HD.nx };
 		status = nc_get_vara_float(ncid, varid, start, count, ycoord);
 		if (status != NC_NOERR) handle_error(status);
 			
@@ -238,18 +232,18 @@ void readgridsize(char ncfile[], char Uvar[], char Vvar[], char hhvar[],int &nt,
 	if (ndims < 2)
 	{
 		float * xtempvar;
-		xtempvar = (float *)malloc(nx*sizeof(float));
+		xtempvar = (float *)malloc(HD.nx*sizeof(float));
 		size_t start[] = { 0 };
-		size_t count[] = { nx };
+		size_t count[] = { HD.nx };
 		status = nc_get_vara_float(ncid, varid, start, count, xtempvar);
 		if (status != NC_NOERR) handle_error(status);
 
-		for (int i = 0; i<nx; i++)
+		for (int i = 0; i<HD.nx; i++)
 		{
-			for (int j = 0; j<ny; j++)
+			for (int j = 0; j<HD.ny; j++)
 			{
 
-				xcoord[i + j*nx] = xtempvar[i];
+				xcoord[i + j*HD.nx] = xtempvar[i];
 
 			}
 		}
@@ -257,7 +251,7 @@ void readgridsize(char ncfile[], char Uvar[], char Vvar[], char hhvar[],int &nt,
 	else
 	{
 		size_t start[] = { 0, 0 };
-		size_t count[] = { ny, nx };
+		size_t count[] = { HD.ny, HD.nx };
 		status = nc_get_vara_float(ncid, varid, start, count, xcoord);
 		if (status != NC_NOERR) handle_error(status);
 
@@ -269,6 +263,7 @@ void readgridsize(char ncfile[], char Uvar[], char Vvar[], char hhvar[],int &nt,
 
 	status = nc_close(ncid);
 
+	return HD;
 
 }
 void readgridsizeHYCOM(char ncfile[], char Uvar[], char Vvar[], int &nt, int &nx, int &ny, float *&xcoord, float *&ycoord)
@@ -555,7 +550,7 @@ void readHDstepHYCOM(char ncfile[], char Uvar[], char Vvar[], int nx, int ny, in
 	printf("...done\n");
 }
 
-void readHDstep(char ncfile[], char Uvar[], char Vvar[], char hhvar[], int nx, int ny, int hdstep, int lev, float *&Uo, float *&Vo, float *&hho)
+void readHDstep(HDParam HD, int steptoread, float *&Uo, float *&Vo, float *&hho)
 {
 	//
 	int status;
@@ -563,29 +558,29 @@ void readHDstep(char ncfile[], char Uvar[], char Vvar[], char hhvar[], int nx, i
 
 	int uu_id, vv_id, hh_id;
 
-	printf("Reading HD step: %d ...", hdstep);
+	printf("Reading HD step: %d ...", steptoread);
 	//size_t startl[]={hdstep-1,lev,0,0};
 	//size_t countlu[]={1,1,netau,nxiu};
 	//size_t countlv[]={1,1,netav,nxiv};
-	size_t startl[] = { hdstep, 0, 0 };
-	size_t countlu[] = { 1, ny, nx };
-	size_t countlv[] = { 1, ny, nx };
+	size_t startl[] = { steptoread, 0, 0 };
+	size_t countlu[] = { 1, HD.ny, HD.nx };
+	size_t countlv[] = { 1, HD.ny, HD.nx };
 
 	//static ptrdiff_t stridel[]={1,1,1,1};
 	static ptrdiff_t stridel[] = { 1, 1, 1 };
 
 	//Open NC file
-	status = nc_open(ncfile, 0, &ncid);
+	status = nc_open(HD.ncfile.c_str(), 0, &ncid);
 	if (status != NC_NOERR) handle_error(status);
 
 	//status = nc_inq_varid (ncid, "u", &uu_id);
-	status = nc_inq_varid(ncid, Uvar, &uu_id);
+	status = nc_inq_varid(ncid, HD.Uvarname.c_str(), &uu_id);
 	if (status != NC_NOERR) handle_error(status);
 	//status = nc_inq_varid (ncid, "v", &vv_id);
-	status = nc_inq_varid(ncid, Vvar, &vv_id);
+	status = nc_inq_varid(ncid, HD.Vvarname.c_str(), &vv_id);
 	if (status != NC_NOERR) handle_error(status);
 
-	status = nc_inq_varid(ncid, hhvar, &hh_id);
+	status = nc_inq_varid(ncid, HD.Hvarname.c_str(), &hh_id);
 	if (status != NC_NOERR) handle_error(status);
 
 	status = nc_get_vara_float(ncid, uu_id, startl, countlu, Uo);
@@ -597,24 +592,24 @@ void readHDstep(char ncfile[], char Uvar[], char Vvar[], char hhvar[], int nx, i
 
 	//Set land flag to 0.0m/s to allow particle to stick to the coast
 
-	for (int i = 0; i<nx; i++)
+	for (int i = 0; i<HD.nx; i++)
 	{
-		for (int j = 0; j<ny; j++)
+		for (int j = 0; j<HD.ny; j++)
 		{
-			if (abs(Uo[i + j*nx])>10.0f)
+			if (abs(Uo[i + j*HD.nx])>99.0f)
 			{
-				Uo[i + j*nx] = 0.0f;
+				Uo[i + j*HD.nx] = 0.0f;
 			}
 		}
 	}
 
-	for (int i = 0; i<nx; i++)
+	for (int i = 0; i<HD.nx; i++)
 	{
-		for (int j = 0; j<ny; j++)
+		for (int j = 0; j<HD.ny; j++)
 		{
-			if (abs(Vo[i + j*nx])>10.0f)
+			if (abs(Vo[i + j*HD.nx])>99.0f)
 			{
-				Vo[i + j*nx] = 0.0f;
+				Vo[i + j*HD.nx] = 0.0f;
 			}
 		}
 	}
@@ -627,7 +622,7 @@ void readHDstep(char ncfile[], char Uvar[], char Vvar[], char hhvar[], int nx, i
 	printf("...done\n");
 }
 
-void Calcmaxstep(int nx, int ny, float &dt, float hddt, float *Uo, float *Vo, float *Un, float *Vn, float * distX, float *distY)
+void Calcmaxstep(int nx, int ny, double &dt, double hddt, float *Uo, float *Vo, float *Un, float *Vn, float * distX, float *distY)
 {
 	float tmin = 99999999999.0f;
 	float Velmin = 0.0000001f; // Needed to avoid dividing by zero
@@ -649,7 +644,7 @@ void Calcmaxstep(int nx, int ny, float &dt, float hddt, float *Uo, float *Vo, fl
 			tmin = min(tmin, Vttc);
 		}
 	}
-	dt = min(max(CFL*tmin,Velmin),hddt/4); // make sure dt is above round off error and make sure there are going to be at least 4 step in between each HDstep.
+	dt = min(max(CFL*tmin,Velmin), (float) hddt/4.0f); // make sure dt is above round off error and make sure there are going to be at least 4 step in between each HDstep.
 	printf("New timestep: dt = %f\n", dt);
 }
 
