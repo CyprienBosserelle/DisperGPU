@@ -5,9 +5,14 @@
 #include "cuda_runtime.h"
 #include "device_launch_parameters.h"
 
+<<<<<<< HEAD
 #include <iostream>
 
 
+=======
+#include <stdio.h>
+#include <iostream>
+>>>>>>> ef09866640a6bb6db5d64810227e9a562dc0f2fe
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
@@ -24,13 +29,32 @@
 #include <math.h>
 #include <vector>
 
+#include <time.h>
+#include <string>
+
+#include <sstream>
+#include <iterator>
+#include <netcdf.h>
+#include <algorithm>
+#include <vector>
+#include <ctime>
+#include <random>
+#include <chrono>
+
 #define pi 3.14159265f
 
 // Class definitions
 class Param{
 public:
 	//Files
+<<<<<<< HEAD
 	
+=======
+	std::string ncfile; //Should use strings here
+	std::string Uvarname;
+	std::string Vvarname;
+	std::string hhvarname;
+>>>>>>> ef09866640a6bb6db5d64810227e9a562dc0f2fe
 	std::string ncoutfile;
 	std::string seedfile;
 
@@ -41,7 +65,16 @@ public:
 	// 2: Quasi 3D, buoyant/sinking particle advected with 2d depth averaged hydrodynamics, Log profile is assumed
 	// 3D: 3D model buoyant/sinking particle advected with 3d hydrodynamcis
 	
+<<<<<<< HEAD
 	//Geographic coordinate system switch 0 is metric 1 is degrees
+=======
+	int nx, ny, nz, nt; //HD input may have a more complex structure with staggered grid 
+
+	
+	double hddt; // HD model tme step
+	int lev; //Level for 3D HD but 2D/Q3D particle model
+	int geocoord; //Geographic coordinate system switch 0 is metric 1 is degrees
+>>>>>>> ef09866640a6bb6db5d64810227e9a562dc0f2fe
 	int backswitch; // 0 run HD model forward 1 run the model backward
 	double Eh, Ev; // Eddy viscosity horizontale, vertical
 	double minrwdepth; // Minimum depth for using Eddy viscosity
@@ -90,6 +123,10 @@ template <class T> const T& min(const T& a, const T& b);
 template <class T> const T& max(const T& a, const T& b);
 template <class T> const T& round(const T& a);
 
+<<<<<<< HEAD
+=======
+void readgridsize(std::string ncfile, std::string Uvar, std::string Vvar, std::string hhvar, int &nt, int &nx, int &ny, float *&xcoord, float *&ycoord);
+>>>>>>> ef09866640a6bb6db5d64810227e9a562dc0f2fe
 
 HDParam readHDparamstr(std::string line, HDParam param);
 Param readparamstr(std::string line, Param param);
@@ -98,7 +135,12 @@ Param readparamstr(std::string line, Param param);
 HDParam readgridsize(HDParam HD, float *&xcoord, float *&ycoord);
 void readgridsizeHYCOM(char ncfile[], char Uvar[], char Vvar[], int &nt, int &nx, int &ny, float *&xcoord, float *&ycoord);
      
+<<<<<<< HEAD
 void readHDstep(HDParam HD, int steptoread, float *&Uo, float *&Vo, float *&hho);
+=======
+
+void readHDstep(std::string ncfile, std::string Uvar, std::string Vvar, std::string hhvar, int nx, int ny, int hdstep, int lev, float *&Uo, float *&Vo, float *&hho);
+>>>>>>> ef09866640a6bb6db5d64810227e9a562dc0f2fe
 
 void readHDstepHYCOM(char ncfile[], char Uvar[], char Vvar[], int nx, int ny, int hdstep, int lev, float *&Uo, float *&Vo, float *&hho);
 
@@ -125,10 +167,22 @@ float isLeft(float P0x, float P0y, float P1x, float P1y, float P2x, float P2y);
 int cn_PnPoly(float Px, float Py, float* Vx, float *Vy, int n);
 int wn_PnPoly(float Px, float Py, float* Vx, float* Vy, int n);
 
+<<<<<<< HEAD
+=======
+Param readparamfile(Param Param);
+Param readparamstr(std::string line, Param param);
+>>>>>>> ef09866640a6bb6db5d64810227e9a562dc0f2fe
 std::string findparameter(std::string parameterstr, std::string line);
 void split(const std::string &s, char delim, std::vector<std::string> &elems);
 std::vector<std::string> split(const std::string &s, char delim);
 std::string trim(const std::string& str, const std::string& whitespace);
+<<<<<<< HEAD
+=======
+
+
+
+
+>>>>>>> ef09866640a6bb6db5d64810227e9a562dc0f2fe
 
 void write_text_to_log_file(std::string text);
 void SaveParamtolog(Param Dparam, HDParam HD);
