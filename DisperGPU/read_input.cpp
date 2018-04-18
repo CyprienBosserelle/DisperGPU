@@ -141,8 +141,10 @@ HDParam readHDparamstr(std::string line, HDParam param)
 	if (!parametervalue.empty())
 	{
 		param.ncfile = parametervalue;
-
-		//std::cerr << "Bathymetry file found!" << std::endl;
+		param.ncfileU = parametervalue;
+		param.ncfileV = parametervalue;
+		param.ncfileH = parametervalue;
+		
 	}
 
 	parameterstr = "ncfileU";
@@ -151,7 +153,7 @@ HDParam readHDparamstr(std::string line, HDParam param)
 	{
 		param.ncfileU = parametervalue;
 
-		//std::cerr << "Bathymetry file found!" << std::endl;
+		
 	}
 
 	parameterstr = "ncfileV";
@@ -160,7 +162,7 @@ HDParam readHDparamstr(std::string line, HDParam param)
 	{
 		param.ncfileV = parametervalue;
 
-		//std::cerr << "Bathymetry file found!" << std::endl;
+		
 	}
 
 	parameterstr = "ncfileH";
@@ -169,7 +171,7 @@ HDParam readHDparamstr(std::string line, HDParam param)
 	{
 		param.ncfileH = parametervalue;
 
-		//std::cerr << "Bathymetry file found!" << std::endl;
+		
 	}
 
 	//
