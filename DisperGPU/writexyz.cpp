@@ -163,11 +163,8 @@ void creatncfile(std::string outfile, int nx,int ny,int np,float *xval, float *y
 	status = nc_close(ncid);  
 }
 
-<<<<<<< HEAD
+
 void writestep2nc(std::string outfile, int nx,int ny,int np, float totaltime,float *xval, float *yval, float *Nincel,float *cNincel,float * cTincel, float4 *PartPos)
-=======
-void writestep2nc(std::string outfile, int nx, int ny, int np, float totaltime, float *xval, float *yval, float *Nincel, float *cNincel, float * cTincel, float4 *PartPos)
->>>>>>> ef09866640a6bb6db5d64810227e9a562dc0f2fe
 {
 	int status;
    	int ncid,time_dim,recid;

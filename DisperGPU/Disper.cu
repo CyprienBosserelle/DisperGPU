@@ -78,40 +78,23 @@ void CUDA_CHECK(cudaError CUDerr)
 
 	}
 }
-<<<<<<< HEAD
+
 void GPUstep(Param Dparam, HDParam HD)
 {
 	int nx = HD.nx;
 	int ny = HD.ny;
 	int np = Dparam.np;
 
-=======
-void GPUstep(Control Dcontrol, Param Dparam)
-{
-	int nx = Dparam.nx;
-	int ny = Dparam.ny;
-	int np = Dparam.np;
-
-	int backswitch = Dparam.backswitch;
-
-	double totaltime = Dcontrol.totaltime;
-	int hdstep = Dcontrol.hdstep;
-	int hdstart = Dcontrol.hdstart;
-	int hdend = Dcontrol.hdend;
-
-	double hddt = Dparam.hddt;
 
 
->>>>>>> ef09866640a6bb6db5d64810227e9a562dc0f2fe
+
 	dim3 blockDimHD(16, 16, 1);
 	//dim3 gridDimHD(ceil(max(netau,netav)*max(nxiu,nxiv) / (float)blockDimHD.x), 1, 1);
 	dim3 gridDimHD((int)ceil((float)nx / (float)blockDimHD.x), (int)ceil((float)ny / (float)blockDimHD.y), 1);
 
-<<<<<<< HEAD
+
 	if (Dparam.totaltime >= HD.hddt*(HD.hdstep - HD.hdstart + 1))//+1 because we only read the next step when time exceed the previous next step
-=======
-	if (totaltime >= Dparam.hddt*(hdstep - hdstart + 1))//+1 because we only read the next step when time exeed the previous next step
->>>>>>> ef09866640a6bb6db5d64810227e9a562dc0f2fe
+
 	{
 		//Read next step
 		printf("Reading Next step\n");
@@ -135,11 +118,9 @@ void GPUstep(Control Dcontrol, Param Dparam)
 
 		
 		//readHDstepHYCOM(ncfile, Uvarname, Vvarname, nx, ny, steptoread, lev, Un, Vn, hhn);
-<<<<<<< HEAD
+
 		readHDstep(HD, steptoread, Un, Vn, hhn);
-=======
-		readHDstep(Dparam.ncfile, Dparam.Uvarname, Dparam.Vvarname, Dparam.hhvarname, nx, ny, steptoread, Dparam.lev, Un, Vn, hhn);
->>>>>>> ef09866640a6bb6db5d64810227e9a562dc0f2fe
+
 
 		CUDA_CHECK(cudaMemcpy(Un_g, Un, nx*ny*sizeof(float), cudaMemcpyHostToDevice));
 		CUDA_CHECK(cudaMemcpy(Vn_g, Vn, nx*ny*sizeof(float), cudaMemcpyHostToDevice));
@@ -185,11 +166,9 @@ void GPUstep(Control Dcontrol, Param Dparam)
 
 	//Calculate particle step
 
-<<<<<<< HEAD
+
 	updatepartpos <<<gridDim, blockDim, 0 >>>(np, Dparam.dt, Dparam.Eh, d_Rand, partpos_g);
-=======
-	updatepartpos <<<gridDim, blockDim, 0 >>>(np, Dcontrol.dt, Dparam.Eh, d_Rand, partpos_g);
->>>>>>> ef09866640a6bb6db5d64810227e9a562dc0f2fe
+
 	CUDA_CHECK(cudaDeviceSynchronize());
 
 	//ij2lonlat <<<gridDim, blockDim, 0 >> >(np, xl_g, yl_g, xp_g, yp_g);
@@ -202,7 +181,7 @@ void GPUstep(Control Dcontrol, Param Dparam)
 
 
 
-<<<<<<< HEAD
+
 void CPUstep(Param Dparam, HDParam HD)
 {
 	int nx = HD.nx;
@@ -228,36 +207,13 @@ void CPUstep(Param Dparam, HDParam HD)
 		NextstepCPU(nx, ny, Uo, Vo, hho, Un, Vn, hhn);
 		//readHDstepHYCOM(ncfile, Uvarname, Vvarname, nx, ny, steptoread, lev, Un, Vn, hhn);
 		readHDstep(HD, steptoread,Un, Vn, hhn);
-=======
-void CPUstep(Control Dcontrol, Param Dparam)
-{
 
-	int nx = Dparam.nx;
-	int ny = Dparam.ny;
-	
-	if (Dcontrol.totaltime >= Dparam.hddt*(Dcontrol.hdstep - Dcontrol.hdstart + 1))//+1 because we only read the next step when time exeed the previous next step
-	{
-		//Read next step
-
-		Dcontrol.hdstep++;
-
-		int steptoread = Dcontrol.hdstep;
-
-		if (Dparam.backswitch>0)
-		{
-			steptoread = Dcontrol.hdend - Dcontrol.hdstep;
-		}
-
-		NextstepCPU(Dparam.nx, Dparam.ny, Uo, Vo, hho, Un, Vn, hhn);
-		//readHDstepHYCOM(ncfile, Uvarname, Vvarname, nx, ny, steptoread, lev, Un, Vn, hhn);
-		readHDstep(Dparam.ncfile, Dparam.Uvarname, Dparam.Vvarname, Dparam.hhvarname, Dparam.nx, Dparam.ny, steptoread, Dparam.lev, Un, Vn, hhn);
->>>>>>> ef09866640a6bb6db5d64810227e9a562dc0f2fe
 
 
 	}
 
 	//Interpolate U vel
-<<<<<<< HEAD
+
 	InterpstepCPU( nx, ny, Dparam.backswitch, HD.hdstep, Dparam.totaltime, HD.hddt, Ux, Uo, Un);
 
 	//Interpolate V vel
@@ -265,25 +221,15 @@ void CPUstep(Control Dcontrol, Param Dparam)
 
 	//Interpolate Water depth
 	InterpstepCPU(nx, ny, 1.0f, HD.hdstep, Dparam.totaltime, HD.hddt, hhx, hho, hhn);
-=======
-	InterpstepCPU(nx, ny, Dparam.backswitch, Dcontrol.hdstep, Dcontrol.totaltime, Dparam.hddt, Ux, Uo, Un);
 
-	//Interpolate V vel
-	InterpstepCPU(nx, ny, Dparam.backswitch, Dcontrol.hdstep, Dcontrol.totaltime, Dparam.hddt, Vx, Vo, Vn);
-
-	//Interpolate Water depth
-	InterpstepCPU(nx, ny, 1.0f, Dcontrol.hdstep, Dcontrol.totaltime, Dparam.hddt, hhx, hho, hhn);
->>>>>>> ef09866640a6bb6db5d64810227e9a562dc0f2fe
 
 	// Reseed random number
 	//not needed here?
 
 	// Update particle position
-<<<<<<< HEAD
+
 	updatepartposCPU(nx, ny, np, Dparam.dt, Dparam.Eh, Ux, Vx, hhx, distX, distY, partpos);
-=======
-	updatepartposCPU(nx, ny, Dparam.np, Dcontrol.dt, Dparam.Eh, Ux, Vx, hhx, distX, distY, partpos);
->>>>>>> ef09866640a6bb6db5d64810227e9a562dc0f2fe
+
 
 	//update Nincel
 	calcNincelCPU(Dparam.np, nx, ny, partpos, Nincel, cNincel, cTincel);
@@ -370,7 +316,7 @@ int main(int argc, char **argv)
 			//std::cout << line << std::endl;
 		}
 
-<<<<<<< HEAD
+
 	}
 	fs.close();
 
@@ -382,15 +328,7 @@ int main(int argc, char **argv)
 	write_text_to_log_file("Complete\n");
 	write_text_to_log_file("Reading netCDF file :   "+ HD.ncfile);
 	printf("Reading netCDF file: %s...\n", HD.ncfile);
-=======
-	readparamfile(Dparam);
-	
 
-
-	fprintf(logfile, "Complete\n");
-	fprintf(logfile, "Reading netCDF file : %s...\n", Dparam.ncfile);
-	printf("Reading netCDF file: %s...\n", Dparam.ncfile);
->>>>>>> ef09866640a6bb6db5d64810227e9a562dc0f2fe
 	//readgridsizeHYCOM(ncfile, Uvarname, Vvarname, nt, nx, ny, xcoord, ycoord);
 	HD=readgridsize(HD, xcoord, ycoord);
 
@@ -672,17 +610,15 @@ int main(int argc, char **argv)
 
 
 	//Run CPU/GPU loop
-<<<<<<< HEAD
+
 	Dparam.totaltime = 0.0f;
-=======
-	Dcontrol.totaltime = 0.0f;
->>>>>>> ef09866640a6bb6db5d64810227e9a562dc0f2fe
+
 	
 	if (Dparam.partmode > 0)
 	{
 		if (Dparam.GPUDEV < 0) //CPU mainloop
 		{
-<<<<<<< HEAD
+
 			printf("Model starting using CPU. dt=%f; \n", Dparam.dt);
 			printf("step %f of %f\n", Dparam.totaltime, HD.hddt*(HD.hdend - HD.hdstart));
 			while ((HD.hddt*HD.hdend - Dparam.totaltime) > 0.0f)
@@ -702,38 +638,16 @@ int main(int argc, char **argv)
 					writestep2nc(Dparam.ncoutfile, nx, ny, Dparam.np, Dparam.totaltime, xcoord, ycoord, Nincel, cNincel, cTincel, partpos);
 					Dparam.nextouttime = Dparam.nextouttime + Dparam.outtime;
 					Dparam.dt = Dparam.olddt;
-=======
-			printf("Model starting using CPU. dt=%f; \n", Dcontrol.dt);
-			printf("step %f of %f\n", Dcontrol.totaltime, Dparam.hddt*(Dcontrol.hdend - Dcontrol.hdstart));
-			while ((Dparam.hddt*Dcontrol.hdend - Dcontrol.totaltime) > 0.0f)
-			{
-				Dcontrol.dt = min(Dcontrol.dt, Dcontrol.nextouttime - Dcontrol.totaltime);
-				CPUstep(Dcontrol,Dparam);
-				Dcontrol.totaltime = Dcontrol.totaltime + Dcontrol.dt;
-				Dcontrol.stp++;
 
-				if ((Dcontrol.nextouttime - Dcontrol.totaltime) < 0.001f) // Round off error checking
-				{
-					//WriteoutCPU();
-					char fileoutn[15];
-					sprintf(fileoutn, "Part_%d.xyz", Dcontrol.stp);
-					writexyz(Dparam.np, nx, ny, xcoord, ycoord, partpos, fileoutn);
-					//writestep2nc(ncoutfile, nx, ny, totaltime, Nincel, cNincel, cTincel);
-					writestep2nc(Dparam.ncoutfile, nx, ny, Dparam.np, Dcontrol.totaltime, xcoord, ycoord, Nincel, cNincel, cTincel, partpos);
-					Dcontrol.nextouttime = Dcontrol.nextouttime + Dcontrol.outtime;
-					Dcontrol.dt = Dcontrol.olddt;
->>>>>>> ef09866640a6bb6db5d64810227e9a562dc0f2fe
 					//reset Nincel 
 					resetNincelCPU(nx, ny, Nincel);
 				}
 
 
 			}
-<<<<<<< HEAD
+
 			printf("Model Completed\n Total Number of step:%d\t total nuber of outputs steps:%d\n", Dparam.stp, 0);
-=======
-			printf("Model Completed\n Total Number of step:%d\t total nuber of outputs steps:%d\n", Dcontrol.stp, 0);
->>>>>>> ef09866640a6bb6db5d64810227e9a562dc0f2fe
+
 
 		}
 		else //GPU main loop
@@ -743,7 +657,7 @@ int main(int argc, char **argv)
 			CUDA_CHECK(cudaMemcpy(partpos_g, partpos, Dparam.np*sizeof(float4), cudaMemcpyHostToDevice));
 
 			printf("Model starting using GPU.\n");
-<<<<<<< HEAD
+
 			while ((HD.hddt*HD.hdend - Dparam.totaltime) > 0.0f)
 			{
 				Dparam.dt = min(Dparam.dt, Dparam.nextouttime - Dparam.totaltime);
@@ -757,21 +671,7 @@ int main(int argc, char **argv)
 					//WriteoutCPU();
 					char fileoutn[15];
 					sprintf(fileoutn, "Part_%d.xyz", Dparam.stp);
-=======
-			while ((Dparam.hddt*Dcontrol.hdend - Dcontrol.totaltime) > 0.0f)
-			{
-				Dcontrol.dt = min(Dcontrol.dt, Dcontrol.nextouttime - Dcontrol.totaltime);
-				//printf("dt=%f.\n",dt);
-				GPUstep(Dcontrol, Dparam);
-				Dcontrol.totaltime = Dcontrol.totaltime + Dcontrol.dt;
-				Dcontrol.stp++;
 
-				if ((Dcontrol.nextouttime - Dcontrol.totaltime) < 0.001f) // Round off error checking
-				{
-					//WriteoutCPU();
-					char fileoutn[15];
-					sprintf(fileoutn, "Part_%d.xyz", Dcontrol.stp);
->>>>>>> ef09866640a6bb6db5d64810227e9a562dc0f2fe
 					//writexyz(np, nx, ny, xcoord, ycoord, partpos, fileoutn);
 					//writestep2nc(ncoutfile, nx, ny, totaltime, Nincel, cNincel, cTincel);
 					CUDA_CHECK(cudaMemcpy(partpos, partpos_g, Dparam.np*sizeof(float4), cudaMemcpyDeviceToHost));
@@ -780,15 +680,11 @@ int main(int argc, char **argv)
 					CUDA_CHECK(cudaMemcpy(cTincel, cTincel_g, nx*ny*sizeof(float), cudaMemcpyDeviceToHost));
 
 
-<<<<<<< HEAD
+
 					writestep2nc(Dparam.ncoutfile, nx, ny, Dparam.np, Dparam.totaltime, xcoord, ycoord, Nincel, cNincel, cTincel, partpos);
 					Dparam.nextouttime = Dparam.nextouttime + Dparam.outtime;
 					Dparam.dt = Dparam.olddt;
-=======
-					writestep2nc(Dparam.ncoutfile, nx, ny, Dparam.np, Dcontrol.totaltime, xcoord, ycoord, Nincel, cNincel, cTincel, partpos);
-					Dcontrol.nextouttime = Dcontrol.nextouttime + Dcontrol.outtime;
-					Dcontrol.dt = Dcontrol.olddt;
->>>>>>> ef09866640a6bb6db5d64810227e9a562dc0f2fe
+
 					//reset Nincel 
 					resetNincelCPU(nx, ny, Nincel);
 				}
