@@ -633,6 +633,21 @@ void readHDstep(HDParam HD, int steptoread, float *&Uo, float *&Vo, float *&hho)
 
 	status = nc_close(ncid);
 
+	// Apply scale factor and offset
+	//if Vscale!=1?
+	for (int i = 0; i < HD.nx; i++)
+	{
+		for (int j = 0; j < HD.ny; j++)
+		{
+
+			Uo[i + j*HD.nx] = Uo[i + j*HD.nx] * HD.Vscale + HD.Voffset;
+			Vo[i + j*HD.nx] = Vo[i + j*HD.nx] * HD.Vscale + HD.Voffset;
+			hho[i + j*HD.nx] = hho[i + j*HD.nx] * HD.Hscale + HD.Hoffset;
+		}
+	}
+
+
+
 	//Set land flag to 0.0m/s to allow particle to stick to the coast
 
 	for (int i = 0; i<HD.nx; i++)

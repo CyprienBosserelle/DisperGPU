@@ -79,7 +79,7 @@ void CUDA_CHECK(cudaError CUDerr)
 	}
 }
 
-void GPUstep(Param Dparam, HDParam HD)
+HDParam GPUstep(Param Dparam, HDParam HD)
 {
 	int nx = HD.nx;
 	int ny = HD.ny;
@@ -93,8 +93,8 @@ void GPUstep(Param Dparam, HDParam HD)
 	dim3 gridDimHD((int)ceil((float)nx / (float)blockDimHD.x), (int)ceil((float)ny / (float)blockDimHD.y), 1);
 
 
-	if (Dparam.totaltime >= HD.hddt*(HD.hdstep - HD.hdstart + 1))//+1 because we only read the next step when time exceed the previous next step
-
+	//if (Dparam.totaltime >= HD.hddt*(HD.hdstep - HD.hdstart + 1))//+1 because we only read the next step when time exceed the previous next step
+	if (Dparam.totaltime >= HD.hddt*(HD.hdstep - HD.hdstart + 1))
 	{
 		//Read next step
 		printf("Reading Next step\n");
@@ -176,13 +176,15 @@ void GPUstep(Param Dparam, HDParam HD)
 	//printf("Calc Nincel\n");
 	CalcNincel <<<gridDim, blockDim, 0 >>>(np, nx, ny, partpos_g, Nincel_g, cNincel_g, cTincel_g);
 	CUDA_CHECK(cudaDeviceSynchronize());
+
+	return HD;
 }
 
 
 
 
 
-void CPUstep(Param Dparam, HDParam HD)
+HDParam CPUstep(Param Dparam, HDParam HD)
 {
 	int nx = HD.nx;
 	int ny= HD.ny;
@@ -234,6 +236,7 @@ void CPUstep(Param Dparam, HDParam HD)
 	//update Nincel
 	calcNincelCPU(Dparam.np, nx, ny, partpos, Nincel, cNincel, cTincel);
 
+	return HD;
 
 }
 
@@ -291,14 +294,14 @@ int main(int argc, char **argv)
 	/////             Read Operational file           /////
 	//////////////////////////////////////////////////////
 	write_text_to_log_file("Reading DisperGPU.dat...");
-	printf( "Reading DisperGPU.dat\n");
+	printf( "Reading DGPU_param.txt\n");
 
 
-	std::ifstream fs("DisperGPU.dat");
+	std::ifstream fs("DGPU_param.txt");
 
 	if (fs.fail()) {
-		std::cerr << "XBG_param.txt file could not be opened" << std::endl;
-		write_text_to_log_file("ERROR: XBG_param.txt file could not be opened...use this log file to create a file named XBG_param.txt");
+		std::cerr << "DGPU_param.txt file could not be opened" << std::endl;
+		write_text_to_log_file("ERROR: DGPU_param.txt file could not be opened...use this log file to create a file named DGPU_param.txt");
 		SaveParamtolog(Dparam,HD);
 		exit(1);
 	}
@@ -624,7 +627,7 @@ int main(int argc, char **argv)
 			while ((HD.hddt*HD.hdend - Dparam.totaltime) > 0.0f)
 			{
 				Dparam.dt = min(Dparam.dt, Dparam.nextouttime - Dparam.totaltime);
-				CPUstep(Dparam,HD);
+				HD=CPUstep(Dparam,HD);
 				Dparam.totaltime = Dparam.totaltime + Dparam.dt;
 				Dparam.stp++;
 
@@ -662,7 +665,7 @@ int main(int argc, char **argv)
 			{
 				Dparam.dt = min(Dparam.dt, Dparam.nextouttime - Dparam.totaltime);
 				//printf("dt=%f.\n",dt);
-				GPUstep(Dparam,HD);
+				HD=GPUstep(Dparam,HD);
 				Dparam.totaltime = Dparam.totaltime + Dparam.dt;
 				Dparam.stp++;
 
@@ -679,7 +682,8 @@ int main(int argc, char **argv)
 					CUDA_CHECK(cudaMemcpy(cNincel, cNincel_g, nx*ny*sizeof(float), cudaMemcpyDeviceToHost));
 					CUDA_CHECK(cudaMemcpy(cTincel, cTincel_g, nx*ny*sizeof(float), cudaMemcpyDeviceToHost));
 
-
+					
+					//writexyz(Dparam.np, nx, ny, xcoord, ycoord, partpos, fileoutn);
 
 					writestep2nc(Dparam.ncoutfile, nx, ny, Dparam.np, Dparam.totaltime, xcoord, ycoord, Nincel, cNincel, cTincel, partpos);
 					Dparam.nextouttime = Dparam.nextouttime + Dparam.outtime;

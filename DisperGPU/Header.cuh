@@ -47,7 +47,7 @@ public:
 
 	
 
-	std::string ncoutfile;
+	std::string ncoutfile="DGPU_out.nc";
 	std::string seedfile;
 
 
@@ -60,15 +60,16 @@ public:
 
 	//Geographic coordinate system switch 0 is metric 1 is degrees
 
-	int backswitch; // 0 run HD model forward 1 run the model backward
-	double Eh, Ev; // Eddy viscosity horizontale, vertical
-	double minrwdepth; // Minimum depth for using Eddy viscosity
+	int backswitch=0; // 0 run HD model forward 1 run the model backward
+	double Eh = 0.0;
+	double Ev = 0.0; // Eddy viscosity horizontale, vertical
+	double minrwdepth=0.0; // Minimum depth for using Eddy viscosity
 
 	int GPUDEV = 0; // GPU device in use  (default is 0, aka first available device from device query) negative value means force use of cpu and other positive value a dpecific GPU in a multi GPU system
 
 	double totaltime; // needed to track total time as dt can vary
 	double nextouttime;
-	double outtime;
+	double outtime=0.0;
 	int stp, outstep, outtype; // Model step, output step, next output step, output file type
 
 	double dt, olddt; // particle model time step
@@ -88,6 +89,13 @@ public:
 	std::string Hvarname;
 
 
+
+	//Velocity used in the model is Velnetcdf*Vscale+Voffset
+	double Vscale = 1.0;
+	double Voffset = 0.0;
+	double Hscale = 1.0;
+	double Hoffset = 0.0;
+
 	int nx, ny, nz, nt; //HD input may have a more complex structure with staggered grid 
 	int nxu, nxv, nxhh;
 	int nyu, nyv, nyhh;
@@ -96,7 +104,9 @@ public:
 
 
 	double hddt; // HD model tme step
-	int hdstep, hdstart, hdend; // HD model step, HD step start and HD step end
+	int hdstep;
+	int hdstart = 0;
+	int hdend; // HD model step, HD step start and HD step end
 	int lev; //Level for 3D HD but 2D/Q3D particle model
 	int geocoord;
 

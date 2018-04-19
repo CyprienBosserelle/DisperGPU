@@ -242,7 +242,34 @@ HDParam readHDparamstr(std::string line, HDParam param)
 		param.hddt = std::stod(parametervalue);
 	}
 
+
+	parameterstr = "Vscale";
+	parametervalue = findparameter(parameterstr, line);
+	if (!parametervalue.empty())
+	{
+		param.Vscale = std::stod(parametervalue);
+	}
+
+	parameterstr = "Voffset";
+	parametervalue = findparameter(parameterstr, line);
+	if (!parametervalue.empty())
+	{
+		param.Voffset = std::stod(parametervalue);
+	}
+
+	parameterstr = "Hscale";
+	parametervalue = findparameter(parameterstr, line);
+	if (!parametervalue.empty())
+	{
+		param.Hscale = std::stod(parametervalue);
+	}
 	
+	parameterstr = "Hoffset";
+	parametervalue = findparameter(parameterstr, line);
+	if (!parametervalue.empty())
+	{
+		param.Hoffset = std::stod(parametervalue);
+	}
 
 	return param;
 }
