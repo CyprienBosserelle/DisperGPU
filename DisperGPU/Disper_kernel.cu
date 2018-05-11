@@ -21,6 +21,7 @@
 
 texture<float, 2, cudaReadModeElementType> texU;
 texture<float, 2, cudaReadModeElementType> texV;
+texture<float, 2, cudaReadModeElementType> texH;
 texture<float, 2, cudaReadModeElementType> texlonu;
 texture<float, 2, cudaReadModeElementType> texlatu;
 texture<float, 2, cudaReadModeElementType> texdXU;
@@ -87,12 +88,13 @@ __global__ void ResetNincel(int nx, int ny, float *Nincel)
 	}
 }
 
-__global__ void updatepartpos(int npart, float dt, float Eh, float * dd_rand, float4 * partpos)
+__global__ void updatepartpos(int npart, float dt, float Eh,float mindepth, float * dd_rand, float4 * partpos)
 {
 	int i = blockIdx.x * blockDim.x * blockDim.y + blockDim.x * threadIdx.y + threadIdx.x;
 
 	float Ux = 0.0f;
 	float Vx = 0.0f;
+	float Hx = 1.0f;
 	float Xd = 0.0f; //Diffusion term
 	float Yd = 0.0f;
 
@@ -113,21 +115,26 @@ __global__ void updatepartpos(int npart, float dt, float Eh, float * dd_rand, fl
 
 		Ux = tex2D(texU, xxx, yyy);
 		Vx = tex2D(texV, xxx + 0.5, yyy - 0.5);// U and V don't have the same coordinates but in the number of nodes it is just off by half a grid node in both dimension
+		Hx = tex2D(texH, xxx, yyy);
 		distu = tex2D(texdXU, xxx, yyy);
 		distv = tex2D(texdYV, xxx + 0.5, yyy - 0.5);
+		
 		if (distu>0.0001 && distv>0.0001)//Avoid the div by zero which makes i and j #INF
 		{
-			// old formulation
-			//Xd=(dd_rand[i]*2-1)*sqrtf(6*Eh*dt);
-			//Yd=(dd_rand[npart-i]*2-1)*sqrtf(6*Eh*dt);
+			if (Hx >= mindepth)
+			{
+				// old formulation
+				//Xd=(dd_rand[i]*2-1)*sqrtf(6*Eh*dt);
+				//Yd=(dd_rand[npart-i]*2-1)*sqrtf(6*Eh*dt);
 
-			//formulation used in Viikmae et al.
-			Xd = sqrtf(-4.0f * Eh*dt*logf(1 - dd_rand[i]))*cosf(2 * pi*dd_rand[npart - i]);
-			Yd = sqrtf(-4.0f * Eh*dt*logf(1 - dd_rand[i]))*sinf(2 * pi*dd_rand[npart - i]);
+				//formulation used in Viikmae et al.
+				Xd = sqrtf(-4.0f * Eh*dt*logf(1 - dd_rand[i]))*cosf(2 * pi*dd_rand[npart - i]);
+				Yd = sqrtf(-4.0f * Eh*dt*logf(1 - dd_rand[i]))*sinf(2 * pi*dd_rand[npart - i]);
 
-			xxx = xxx + (Ux*dt + Xd) / distu; // Need to add the runge kutta scheme here or not
-			yyy = yyy + (Vx*dt + Yd) / distv;
-			zzz = Ux;
+				xxx = xxx + (Ux*dt + Xd) / distu; // Need to add the runge kutta scheme here or not
+				yyy = yyy + (Vx*dt + Yd) / distv;
+				zzz = Ux;
+			}
 		}
 	}
 

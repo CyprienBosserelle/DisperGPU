@@ -83,11 +83,11 @@ public:
 class HDParam {
 public:
 	std::string ncfile; //Should use strings here
-	std::string ncfileU, ncfileV, ncfileH;
+	std::string ncfileU, ncfileV, ncfileH, ncfileZB;
 	std::string Uvarname;
 	std::string Vvarname;
 	std::string Hvarname;
-
+	std::string ZBvarname;// Only required when input is zs intead of hh
 
 
 	//Velocity used in the model is Velnetcdf*Vscale+Voffset
@@ -95,6 +95,8 @@ public:
 	double Voffset = 0.0;
 	double Hscale = 1.0;
 	double Hoffset = 0.0;
+	double ZBscale = 1.0; // zb is only used to correct from zs to hh and hh=zs-zb  zb is expected negative down us -1 here if input is positive down
+	double ZBoffset = 0.0;
 
 	int nx, ny, nz, nt; //HD input may have a more complex structure with staggered grid 
 	int nxu, nxv, nxhh;
@@ -109,6 +111,9 @@ public:
 	int hdend; // HD model step, HD step start and HD step end
 	int lev; //Level for 3D HD but 2D/Q3D particle model
 	int geocoord;
+	int zs2hh=0; //Input is water level (zs) rather than water depth (hh), this will trigger a correction and require a bathymetry input
+
+
 
 };
 

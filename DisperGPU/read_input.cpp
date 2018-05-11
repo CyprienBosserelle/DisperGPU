@@ -149,6 +149,7 @@ HDParam readHDparamstr(std::string line, HDParam param)
 		param.ncfileU = parametervalue;
 		param.ncfileV = parametervalue;
 		param.ncfileH = parametervalue;
+		param.ncfileZB = parametervalue;
 		
 	}
 
@@ -179,6 +180,15 @@ HDParam readHDparamstr(std::string line, HDParam param)
 		
 	}
 
+	parameterstr = "ncfileZB";
+	parametervalue = findparameter(parameterstr, line);
+	if (!parametervalue.empty())
+	{
+		param.ncfileZB = parametervalue;
+
+
+	}
+
 	//
 	parameterstr = "Uvarname";
 	parametervalue = findparameter(parameterstr, line);
@@ -199,6 +209,13 @@ HDParam readHDparamstr(std::string line, HDParam param)
 	if (!parametervalue.empty())
 	{
 		param.Hvarname = parametervalue;
+	}
+
+	parameterstr = "ZBvarname";
+	parametervalue = findparameter(parameterstr, line);
+	if (!parametervalue.empty())
+	{
+		param.ZBvarname = parametervalue;
 	}
 
 	//
@@ -270,6 +287,28 @@ HDParam readHDparamstr(std::string line, HDParam param)
 	{
 		param.Hoffset = std::stod(parametervalue);
 	}
+
+	parameterstr = "ZBscale";
+	parametervalue = findparameter(parameterstr, line);
+	if (!parametervalue.empty())
+	{
+		param.ZBscale = std::stod(parametervalue);
+	}
+
+	parameterstr = "ZBoffset";
+	parametervalue = findparameter(parameterstr, line);
+	if (!parametervalue.empty())
+	{
+		param.ZBoffset = std::stod(parametervalue);
+	}
+
+	parameterstr = "zs2hh";
+	parametervalue = findparameter(parameterstr, line);
+	if (!parametervalue.empty())
+	{
+		param.geocoord = std::stoi(parametervalue);
+	}
+
 
 	return param;
 }

@@ -27,11 +27,11 @@ float4 * partpos,*partpos_g; //Particule position x,y,z,t
 
 float *Uo, *Un; //U velocity, Step 0 and step n
 float *Vo, *Vn; //V velocity, Step 0 and step n
-float *Ux, *Vx, *hhx; // U and V velocity at the dispersal step
-float *hho, *hhn; // Water depth, Step 0 and step n
+float *Ux, *Vx, *Hx; // U and V velocity at the dispersal step
+float *Ho, *Hn; // Water depth, Step 0 and step n
 float *Uo_g, *Un_g, *Ux_g; //Same on GPU plus at t particle step
 float *Vo_g, *Vn_g, *Vx_g; // Same on GPU plus at t particle step
-float *hho_g, *hhn_g, *hhx_g;// Same on GPU plus at t particle step
+float *Ho_g, *Hn_g, *Hx_g;// Same on GPU plus at t particle step
 
 float *Nincel, *cNincel, *cTincel; // Number of particle in cell, Cumulative Nincel, Cumulative time in cell CPU
 float *Nincel_g, *cNincel_g, *cTincel_g; // Number of particle in cell, Cumulative Nincel, Cumulative time in cell on GPU
@@ -47,7 +47,7 @@ cudaError CUDerr; // Catching CUDA errors
 
 cudaArray* Ux_gp; // Cuda array to pre-store HD vel data before converting to textures
 cudaArray* Vx_gp; // Cuda array to pre-store HD vel data before converting to textures
-cudaArray* hhx_gp; // Cuda array to pre-store HD depth data before converting to textures
+cudaArray* Hx_gp; // Cuda array to pre-store HD depth data before converting to textures
 cudaArray* distX_gp; // Cuda array to pre-store HD distance before converting to textures
 cudaArray* distY_gp; // Cuda array to pre-store HD distance before converting to textures
 
@@ -57,7 +57,7 @@ cudaArray* ycoord_gp; // Cuda array to pre-store HD coordinates before convertin
 // Below create channels between cuda arrays (see above) and textures
 cudaChannelFormatDesc channelDescU = cudaCreateChannelDesc(32, 0, 0, 0, cudaChannelFormatKindFloat);
 cudaChannelFormatDesc channelDescV = cudaCreateChannelDesc(32, 0, 0, 0, cudaChannelFormatKindFloat);
-cudaChannelFormatDesc channelDeschh = cudaCreateChannelDesc(32, 0, 0, 0, cudaChannelFormatKindFloat);
+cudaChannelFormatDesc channelDescH = cudaCreateChannelDesc(32, 0, 0, 0, cudaChannelFormatKindFloat);
 cudaChannelFormatDesc channelDescdX = cudaCreateChannelDesc(32, 0, 0, 0, cudaChannelFormatKindFloat);
 cudaChannelFormatDesc channelDescdY = cudaCreateChannelDesc(32, 0, 0, 0, cudaChannelFormatKindFloat);
 cudaChannelFormatDesc channelDescxcoord = cudaCreateChannelDesc(32, 0, 0, 0, cudaChannelFormatKindFloat);
@@ -113,18 +113,18 @@ HDParam GPUstep(Param Dparam, HDParam HD)
 		NextHDstep<<<gridDimHD, blockDimHD, 0 >>>(nx, ny, Vo_g, Vn_g);
 		CUDA_CHECK(cudaDeviceSynchronize());
 
-		//NextHDstep<<<gridDimHD, blockDimHD, 0 >>>(nx, ny, hho_g, hhn_g);
-		//CUDA_CHECK(cudaDeviceSynchronize());
+		NextHDstep<<<gridDimHD, blockDimHD, 0 >>>(nx, ny, Ho_g, Hn_g);
+		CUDA_CHECK(cudaDeviceSynchronize());
 
 		
 		//readHDstepHYCOM(ncfile, Uvarname, Vvarname, nx, ny, steptoread, lev, Un, Vn, hhn);
 
-		readHDstep(HD, steptoread, Un, Vn, hhn);
+		readHDstep(HD, steptoread, Un, Vn, Hn);
 
 
 		CUDA_CHECK(cudaMemcpy(Un_g, Un, nx*ny*sizeof(float), cudaMemcpyHostToDevice));
 		CUDA_CHECK(cudaMemcpy(Vn_g, Vn, nx*ny*sizeof(float), cudaMemcpyHostToDevice));
-		//CUDA_CHECK(cudaMemcpy(hhn_g, hhn, nx*ny*sizeof(float), cudaMemcpyHostToDevice));
+		CUDA_CHECK(cudaMemcpy(Hn_g, Hn, nx*ny*sizeof(float), cudaMemcpyHostToDevice));
 
 	}
 	//printf("Run GPU step\n");
@@ -142,14 +142,14 @@ HDParam GPUstep(Param Dparam, HDParam HD)
 	HD_interp << <gridDimHD, blockDimHD, 0 >>>(nx, ny, Dparam.backswitch, HD.hdstep - HD.hdstart, Dparam.totaltime, HD.hddt, Vo_g, Vn_g, Vx_g);
 	CUDA_CHECK(cudaDeviceSynchronize());
 
-	//HD_interp <<<gridDimHD, blockDimHD, 0 >>>(nx, ny, backswitch, hdstep, totaltime, hddt, hho_g, hhn_g, hhx_g);
-	//CUDA_CHECK(cudaDeviceSynchronize());
+	HD_interp <<<gridDimHD, blockDimHD, 0 >>>(nx, ny, Dparam.backswitch, HD.hdstep - HD.hdstart, Dparam.totaltime, HD.hddt, Ho_g, Hn_g, Hx_g);
+	CUDA_CHECK(cudaDeviceSynchronize());
 
 
 	//printf("Mem copy to array\n");
 	CUDA_CHECK(cudaMemcpyToArray(Ux_gp, 0, 0, Ux_g, nx*ny* sizeof(float), cudaMemcpyDeviceToDevice));
 	CUDA_CHECK(cudaMemcpyToArray(Vx_gp, 0, 0, Vx_g, nx*ny* sizeof(float), cudaMemcpyDeviceToDevice));
-	//CUDA_CHECK(cudaMemcpyToArray(hhx_gp, 0, 0, hhx_g, nx*ny* sizeof(float), cudaMemcpyDeviceToDevice));
+	CUDA_CHECK(cudaMemcpyToArray(Hx_gp, 0, 0, Hx_g, nx*ny* sizeof(float), cudaMemcpyDeviceToDevice));
 	//Generate some random numbers
 	// Set seed 
 	//curandSetPseudoRandomGeneratorSeed(gen, SEED);
@@ -167,7 +167,7 @@ HDParam GPUstep(Param Dparam, HDParam HD)
 	//Calculate particle step
 
 
-	updatepartpos <<<gridDim, blockDim, 0 >>>(np, Dparam.dt, Dparam.Eh, d_Rand, partpos_g);
+	updatepartpos <<<gridDim, blockDim, 0 >>>(np, Dparam.dt, Dparam.Eh, Dparam.minrwdepth, d_Rand, partpos_g);
 
 	CUDA_CHECK(cudaDeviceSynchronize());
 
@@ -206,9 +206,9 @@ HDParam CPUstep(Param Dparam, HDParam HD)
 
 
 
-		NextstepCPU(nx, ny, Uo, Vo, hho, Un, Vn, hhn);
+		NextstepCPU(nx, ny, Uo, Vo, Ho, Un, Vn, Hn);
 		//readHDstepHYCOM(ncfile, Uvarname, Vvarname, nx, ny, steptoread, lev, Un, Vn, hhn);
-		readHDstep(HD, steptoread,Un, Vn, hhn);
+		readHDstep(HD, steptoread,Un, Vn, Hn);
 
 
 
@@ -222,7 +222,7 @@ HDParam CPUstep(Param Dparam, HDParam HD)
 	InterpstepCPU(nx, ny, Dparam.backswitch, HD.hdstep, Dparam.totaltime, HD.hddt, Vx, Vo, Vn);
 
 	//Interpolate Water depth
-	InterpstepCPU(nx, ny, 1.0f, HD.hdstep, Dparam.totaltime, HD.hddt, hhx, hho, hhn);
+	InterpstepCPU(nx, ny, 1.0f, HD.hdstep, Dparam.totaltime, HD.hddt, Hx, Ho, Hn);
 
 
 	// Reseed random number
@@ -230,7 +230,7 @@ HDParam CPUstep(Param Dparam, HDParam HD)
 
 	// Update particle position
 
-	updatepartposCPU(nx, ny, np, Dparam.dt, Dparam.Eh, Ux, Vx, hhx, distX, distY, partpos);
+	updatepartposCPU(nx, ny, np, Dparam.dt, Dparam.Eh, Ux, Vx, Hx, distX, distY, partpos);
 
 
 	//update Nincel
@@ -353,15 +353,18 @@ int main(int argc, char **argv)
 	Un = (float *)malloc(nx*ny*sizeof(float));
 	Vo = (float *)malloc(nx*ny*sizeof(float));
 	Vn = (float *)malloc(nx*ny*sizeof(float));
-	hho = (float *)malloc(nx*ny*sizeof(float));
-	hhn = (float *)malloc(nx*ny*sizeof(float));
+	Ho = (float *)malloc(nx*ny*sizeof(float));
+	Hn = (float *)malloc(nx*ny*sizeof(float));
 
 	Ux = (float *)malloc(nx*ny*sizeof(float));
 	Vx = (float *)malloc(nx*ny*sizeof(float));
-	hhx = (float *)malloc(nx*ny*sizeof(float));
+	Hx = (float *)malloc(nx*ny*sizeof(float));
 
 	distX = (float *)malloc(nx*ny*sizeof(float));
 	distY = (float *)malloc(nx*ny*sizeof(float));
+
+
+
 
 	/* initialize random seed: */
 	srand((unsigned int)time(NULL));
@@ -427,14 +430,15 @@ int main(int argc, char **argv)
 	//Also read next step?
 	//readHDstepHYCOM(ncfile, Uvarname, Vvarname, nx, ny, steptoread+1, lev, Un, Vn, hhn);
 
-	readHDstep(HD,steptoread, Uo, Vo, hho);
+	readHDstep(HD,steptoread, Uo, Vo, Ho);
 	
 	//Also read next step?
-	readHDstep(HD, steptoread + 1,  Un, Vn, hhn);
+	readHDstep(HD, steptoread + 1,  Un, Vn, Hn);
 
 	//Calculate best dt
 	if (!(Dparam.dt > 0.0f))// if dt==0.0
 	{
+		//Need to add CFL control here
 		Calcmaxstep(nx, ny, Dparam.dt, HD.hddt, Uo, Vo, Un, Vn, distX, distY);
 	}
 	Dparam.olddt = Dparam.dt;
@@ -487,6 +491,10 @@ int main(int argc, char **argv)
 		CUDA_CHECK(cudaMalloc((void **)&Vn_g, nx*ny* sizeof(float)));
 		CUDA_CHECK(cudaMalloc((void **)&Vx_g, nx*ny* sizeof(float)));
 
+		CUDA_CHECK(cudaMalloc((void **)&Ho_g, nx*ny * sizeof(float)));
+		CUDA_CHECK(cudaMalloc((void **)&Hn_g, nx*ny * sizeof(float)));
+		CUDA_CHECK(cudaMalloc((void **)&Hx_g, nx*ny * sizeof(float)));
+
 		CUDA_CHECK(cudaMalloc((void **)&Nincel_g, nx*ny* sizeof(float)));
 		CUDA_CHECK(cudaMalloc((void **)&cNincel_g, nx*ny* sizeof(float)));
 		CUDA_CHECK(cudaMalloc((void **)&cTincel_g, nx*ny* sizeof(float)));
@@ -508,6 +516,10 @@ int main(int argc, char **argv)
 		CUDA_CHECK(cudaMemcpy(Vn_g, Vo, nx*ny*sizeof(float), cudaMemcpyHostToDevice));
 		CUDA_CHECK(cudaMemcpy(Vx_g, Vo, nx*ny*sizeof(float), cudaMemcpyHostToDevice));
 
+		CUDA_CHECK(cudaMemcpy(Ho_g, Ho, nx*ny * sizeof(float), cudaMemcpyHostToDevice));
+		CUDA_CHECK(cudaMemcpy(Hn_g, Ho, nx*ny * sizeof(float), cudaMemcpyHostToDevice));
+		CUDA_CHECK(cudaMemcpy(Hx_g, Ho, nx*ny * sizeof(float), cudaMemcpyHostToDevice));
+
 		CUDA_CHECK(cudaMemcpy(Nincel_g, Nincel, nx*ny*sizeof(float), cudaMemcpyHostToDevice));
 		CUDA_CHECK(cudaMemcpy(cNincel_g, Nincel, nx*ny*sizeof(float), cudaMemcpyHostToDevice));
 		CUDA_CHECK(cudaMemcpy(cTincel_g, Nincel, nx*ny*sizeof(float), cudaMemcpyHostToDevice));
@@ -528,6 +540,7 @@ int main(int argc, char **argv)
 		// Copy velocity arrays
 		CUDA_CHECK(cudaMallocArray(&Ux_gp, &channelDescU, nx, ny));
 		CUDA_CHECK(cudaMallocArray(&Vx_gp, &channelDescV, nx, ny));
+		CUDA_CHECK(cudaMallocArray(&Hx_gp, &channelDescH, nx, ny));
 
 		CUDA_CHECK(cudaMemcpyToArray(Ux_gp, 0, 0, Uo, nx*ny* sizeof(float), cudaMemcpyHostToDevice));
 		CUDA_CHECK(cudaMemcpyToArray(Vx_gp, 0, 0, Vo, nx*ny* sizeof(float), cudaMemcpyHostToDevice));
@@ -546,6 +559,14 @@ int main(int argc, char **argv)
 		texV.normalized = false;
 
 		CUDA_CHECK(cudaBindTextureToArray(texV, Vx_gp, channelDescV));
+
+
+		texH.addressMode[0] = cudaAddressModeWrap;
+		texH.addressMode[1] = cudaAddressModeWrap;
+		texH.filterMode = cudaFilterModeLinear;
+		texH.normalized = false;
+
+		CUDA_CHECK(cudaBindTextureToArray(texV, Hx_gp, channelDescH));
 
 		CUDA_CHECK(cudaMallocArray(&distX_gp, &channelDescdX, nx, ny));
 		//CUDA_CHECK( cudaMallocArray( &distXV_gp, &channelDescdXV, netav, nxiv ));

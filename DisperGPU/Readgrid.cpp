@@ -580,7 +580,8 @@ void readHDstep(HDParam HD, int steptoread, float *&Uo, float *&Vo, float *&hho)
 	int ncid;
 
 	int uu_id, vv_id, hh_id;
-
+	// step to read should be adjusted in each variables so that it keeps using the last output and teh model keeps on going
+	// right now the model will catch anexception 
 	printf("Reading HD step: %d ...", steptoread);
 	//size_t startl[]={hdstep-1,lev,0,0};
 	//size_t countlu[]={1,1,netau,nxiu};
@@ -632,6 +633,53 @@ void readHDstep(HDParam HD, int steptoread, float *&Uo, float *&Vo, float *&hho)
 	if (status != NC_NOERR) handle_error(status);
 
 	status = nc_close(ncid);
+	if (HD.zs2hh > 0)
+	{
+		// do zb
+		//WARNING
+		// Here I assume zb is only 2d but it could be 3d this needs to be much more flexible
+		float * zb = (float *)malloc(HD.nx*HD.ny * sizeof(float));
+		//size_t countlv[]={1,1,netav,nxiv};
+		size_t startl[] = { 0, 0 };
+		size_t countlu[] = { HD.ny, HD.nx };
+		size_t countlv[] = { HD.ny, HD.nx };
+		status = nc_open(HD.ncfileZB.c_str(), 0, &ncid);
+		if (status != NC_NOERR) handle_error(status);
+
+		status = nc_inq_varid(ncid, HD.ZBvarname.c_str(), &hh_id);
+		if (status != NC_NOERR) handle_error(status);
+
+
+
+		status = nc_get_vara_float(ncid, hh_id, startl, countlv, zb);
+		if (status != NC_NOERR) handle_error(status);
+
+		status = nc_close(ncid);
+		//hho is in fact zso so we correct this using zb
+		// hh=zs-zb;
+		for (int i = 0; i < HD.nx; i++)
+		{
+			for (int j = 0; j < HD.ny; j++)
+			{
+
+				hho[i + j*HD.nx] = (hho[i + j*HD.nx] * HD.Hscale + HD.Hoffset) - (zb[i + j*HD.nx] * HD.ZBscale + HD.ZBoffset);
+			}
+		}
+
+		//free zb
+		free(zb);
+	}
+	else
+	{
+		for (int i = 0; i < HD.nx; i++)
+		{
+			for (int j = 0; j < HD.ny; j++)
+			{
+
+				hho[i + j*HD.nx] = hho[i + j*HD.nx] * HD.Hscale + HD.Hoffset;
+			}
+		}
+	}
 
 	// Apply scale factor and offset
 	//if Vscale!=1?
@@ -642,11 +690,11 @@ void readHDstep(HDParam HD, int steptoread, float *&Uo, float *&Vo, float *&hho)
 
 			Uo[i + j*HD.nx] = Uo[i + j*HD.nx] * HD.Vscale + HD.Voffset;
 			Vo[i + j*HD.nx] = Vo[i + j*HD.nx] * HD.Vscale + HD.Voffset;
-			hho[i + j*HD.nx] = hho[i + j*HD.nx] * HD.Hscale + HD.Hoffset;
+			//hho[i + j*HD.nx] = hho[i + j*HD.nx] * HD.Hscale + HD.Hoffset;
 		}
 	}
 
-
+	
 
 	//Set land flag to 0.0m/s to allow particle to stick to the coast
 
