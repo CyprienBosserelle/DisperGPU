@@ -100,7 +100,7 @@ HDParam GPUstep(Param Dparam, HDParam HD)
 		printf("Reading Next step\n");
 		HD.hdstep++;
 
-		int steptoread = HD.hdstep;
+		int steptoread = HD.hdstep+1;
 
 		if (Dparam.backswitch>0)
 		{
@@ -329,8 +329,8 @@ int main(int argc, char **argv)
 
 
 	write_text_to_log_file("Complete\n");
-	write_text_to_log_file("Reading netCDF file :   "+ HD.ncfile);
-	printf("Reading netCDF file: %s...\n", HD.ncfile);
+	write_text_to_log_file("Reading netCDF input file(s)  ");
+	printf("Reading netCDF input file(s) ...\n");
 
 	//readgridsizeHYCOM(ncfile, Uvarname, Vvarname, nt, nx, ny, xcoord, ycoord);
 	HD=readgridsize(HD, xcoord, ycoord);
@@ -544,6 +544,7 @@ int main(int argc, char **argv)
 
 		CUDA_CHECK(cudaMemcpyToArray(Ux_gp, 0, 0, Uo, nx*ny* sizeof(float), cudaMemcpyHostToDevice));
 		CUDA_CHECK(cudaMemcpyToArray(Vx_gp, 0, 0, Vo, nx*ny* sizeof(float), cudaMemcpyHostToDevice));
+		CUDA_CHECK(cudaMemcpyToArray(Hx_gp, 0, 0, Ho, nx*ny * sizeof(float), cudaMemcpyHostToDevice));
 
 		texU.addressMode[0] = cudaAddressModeWrap;
 		texU.addressMode[1] = cudaAddressModeWrap;
@@ -566,7 +567,7 @@ int main(int argc, char **argv)
 		texH.filterMode = cudaFilterModeLinear;
 		texH.normalized = false;
 
-		CUDA_CHECK(cudaBindTextureToArray(texV, Hx_gp, channelDescH));
+		CUDA_CHECK(cudaBindTextureToArray(texH, Hx_gp, channelDescH));
 
 		CUDA_CHECK(cudaMallocArray(&distX_gp, &channelDescdX, nx, ny));
 		//CUDA_CHECK( cudaMallocArray( &distXV_gp, &channelDescdXV, netav, nxiv ));

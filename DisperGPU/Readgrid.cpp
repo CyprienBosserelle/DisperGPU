@@ -578,7 +578,7 @@ void readHDstep(HDParam HD, int steptoread, float *&Uo, float *&Vo, float *&hho)
 	//
 	int status;
 	int ncid;
-
+	float NanValU, NanValV, NanValH;
 	int uu_id, vv_id, hh_id;
 	// step to read should be adjusted in each variables so that it keeps using the last output and teh model keeps on going
 	// right now the model will catch anexception 
@@ -605,6 +605,9 @@ void readHDstep(HDParam HD, int steptoread, float *&Uo, float *&Vo, float *&hho)
 	status = nc_get_vara_float(ncid, uu_id, startl, countlu, Uo);
 	if (status != NC_NOERR) handle_error(status);
 
+	status = nc_get_att_float(ncid, uu_id, "_FillValue", &NanValU);
+	if (status != NC_NOERR) handle_error(status);
+
 	status = nc_close(ncid);
 
 
@@ -615,7 +618,9 @@ void readHDstep(HDParam HD, int steptoread, float *&Uo, float *&Vo, float *&hho)
 	if (status != NC_NOERR) handle_error(status);
 
 	status = nc_get_vara_float(ncid, vv_id, startl, countlv, Vo);
+	if (status != NC_NOERR) handle_error(status);
 
+	status = nc_get_att_float(ncid, vv_id, "_FillValue", &NanValV);
 	if (status != NC_NOERR) handle_error(status);
 
 	status = nc_close(ncid);
@@ -632,12 +637,63 @@ void readHDstep(HDParam HD, int steptoread, float *&Uo, float *&Vo, float *&hho)
 	status = nc_get_vara_float(ncid, hh_id, startl, countlv, hho);
 	if (status != NC_NOERR) handle_error(status);
 
+	status = nc_get_att_float(ncid, hh_id, "_FillValue", &NanValH);
+	if (status != NC_NOERR) handle_error(status);
+
+	//printf("hho=%f\n", hho[10 + 330 * HD.nx]);
 	status = nc_close(ncid);
+	
+	for (int i = 0; i<HD.nx; i++)
+	{
+		for (int j = 0; j<HD.ny; j++)
+		{
+			if (Uo[i + j*HD.nx] == NanValU)
+			{
+				Uo[i + j*HD.nx] = 0.0f;
+			}
+		}
+	}
+
+	for (int i = 0; i<HD.nx; i++)
+	{
+		for (int j = 0; j<HD.ny; j++)
+		{
+			if (Vo[i + j*HD.nx] == NanValV)
+			{
+				Vo[i + j*HD.nx] = 0.0f;
+			}
+		}
+	}
+
+	
+
+	// Apply scale factor and offset
+	//if Vscale!=1?
+	for (int i = 0; i < HD.nx; i++)
+	{
+		for (int j = 0; j < HD.ny; j++)
+		{
+
+			Uo[i + j*HD.nx] = Uo[i + j*HD.nx] * HD.Vscale + HD.Voffset;
+			Vo[i + j*HD.nx] = Vo[i + j*HD.nx] * HD.Vscale + HD.Voffset;
+			//hho[i + j*HD.nx] = hho[i + j*HD.nx] * HD.Hscale + HD.Hoffset;
+		}
+	}
+
+	printf("Uo=%f\n", Uo[10 + 330 * HD.nx]);
+
+	//Set land flag to 0.0m/s to allow particle to stick to the coast
+
+
+
+	
+
 	if (HD.zs2hh > 0)
 	{
 		// do zb
 		//WARNING
 		// Here I assume zb is only 2d but it could be 3d this needs to be much more flexible
+		//Also reading zb every time is a bit much
 		float * zb = (float *)malloc(HD.nx*HD.ny * sizeof(float));
 		//size_t countlv[]={1,1,netav,nxiv};
 		size_t startl[] = { 0, 0 };
@@ -657,15 +713,27 @@ void readHDstep(HDParam HD, int steptoread, float *&Uo, float *&Vo, float *&hho)
 		status = nc_close(ncid);
 		//hho is in fact zso so we correct this using zb
 		// hh=zs-zb;
+		//printf("hho=%f\tzb=%f\n", hho[10 + 330 * HD.nx], zb[10 + 330 * HD.nx]);
 		for (int i = 0; i < HD.nx; i++)
 		{
 			for (int j = 0; j < HD.ny; j++)
 			{
+				if (hho[i + j*HD.nx] != NanValH)
+				{
+					hho[i + j*HD.nx] = (hho[i + j*HD.nx] * HD.Hscale + HD.Hoffset) - (zb[i + j*HD.nx] * HD.ZBscale + HD.ZBoffset);
+					//hho[i + j*HD.nx] = max(hho[i + j*HD.nx], 0.0f);
+					//printf("hho=%f\n", hho[i + j*HD.nx]);
+				}
+				else
+				{
+					hho[i + j*HD.nx] = 0.0f;
+				}
 
-				hho[i + j*HD.nx] = (hho[i + j*HD.nx] * HD.Hscale + HD.Hoffset) - (zb[i + j*HD.nx] * HD.ZBscale + HD.ZBoffset);
 			}
 		}
 
+
+		//printf("hho=%f\n", hho[10 + 330 * HD.nx]);
 		//free zb
 		free(zb);
 	}
@@ -675,55 +743,13 @@ void readHDstep(HDParam HD, int steptoread, float *&Uo, float *&Vo, float *&hho)
 		{
 			for (int j = 0; j < HD.ny; j++)
 			{
-
-				hho[i + j*HD.nx] = hho[i + j*HD.nx] * HD.Hscale + HD.Hoffset;
+				if (hho[i + j*HD.nx] == NanValH)
+				{
+					hho[i + j*HD.nx] = 0.0f;
+				}
 			}
 		}
 	}
-
-	// Apply scale factor and offset
-	//if Vscale!=1?
-	for (int i = 0; i < HD.nx; i++)
-	{
-		for (int j = 0; j < HD.ny; j++)
-		{
-
-			Uo[i + j*HD.nx] = Uo[i + j*HD.nx] * HD.Vscale + HD.Voffset;
-			Vo[i + j*HD.nx] = Vo[i + j*HD.nx] * HD.Vscale + HD.Voffset;
-			//hho[i + j*HD.nx] = hho[i + j*HD.nx] * HD.Hscale + HD.Hoffset;
-		}
-	}
-
-	
-
-	//Set land flag to 0.0m/s to allow particle to stick to the coast
-
-	for (int i = 0; i<HD.nx; i++)
-	{
-		for (int j = 0; j<HD.ny; j++)
-		{
-			if (abs(Uo[i + j*HD.nx])>99.0f)
-			{
-				Uo[i + j*HD.nx] = 0.0f;
-			}
-		}
-	}
-
-	for (int i = 0; i<HD.nx; i++)
-	{
-		for (int j = 0; j<HD.ny; j++)
-		{
-			if (abs(Vo[i + j*HD.nx])>99.0f)
-			{
-				Vo[i + j*HD.nx] = 0.0f;
-			}
-		}
-	}
-
-
-
-
-
 	
 	printf("...done\n");
 }

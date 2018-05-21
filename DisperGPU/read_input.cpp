@@ -306,7 +306,7 @@ HDParam readHDparamstr(std::string line, HDParam param)
 	parametervalue = findparameter(parameterstr, line);
 	if (!parametervalue.empty())
 	{
-		param.geocoord = std::stoi(parametervalue);
+		param.zs2hh = std::stoi(parametervalue);
 	}
 
 
