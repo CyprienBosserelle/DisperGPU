@@ -72,7 +72,8 @@ public:
 	double outtime=0.0;
 	int stp, outstep, outtype; // Model step, output step, next output step, output file type
 
-	double dt, olddt; // particle model time step
+	double dt = 0.0;
+	double olddt; // particle model time step
 	
 	int SEED = 777; //Seed for random number generator
 

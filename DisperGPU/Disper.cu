@@ -695,7 +695,7 @@ int main(int argc, char **argv)
 				{
 					//WriteoutCPU();
 					char fileoutn[15];
-					sprintf(fileoutn, "Part_%d.xyz", Dparam.stp);
+					sprintf(fileoutn, "Part_%3.3d.xyz", Dparam.stp);
 
 					//writexyz(np, nx, ny, xcoord, ycoord, partpos, fileoutn);
 					//writestep2nc(ncoutfile, nx, ny, totaltime, Nincel, cNincel, cTincel);
@@ -705,7 +705,7 @@ int main(int argc, char **argv)
 					CUDA_CHECK(cudaMemcpy(cTincel, cTincel_g, nx*ny*sizeof(float), cudaMemcpyDeviceToHost));
 
 					
-					//writexyz(Dparam.np, nx, ny, xcoord, ycoord, partpos, fileoutn);
+					writexyz(Dparam.np, nx, ny, xcoord, ycoord, partpos, fileoutn);
 
 					writestep2nc(Dparam.ncoutfile, nx, ny, Dparam.np, Dparam.totaltime, xcoord, ycoord, Nincel, cNincel, cTincel, partpos);
 					Dparam.nextouttime = Dparam.nextouttime + Dparam.outtime;
