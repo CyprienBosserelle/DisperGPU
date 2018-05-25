@@ -546,24 +546,24 @@ int main(int argc, char **argv)
 		CUDA_CHECK(cudaMemcpyToArray(Vx_gp, 0, 0, Vo, nx*ny* sizeof(float), cudaMemcpyHostToDevice));
 		CUDA_CHECK(cudaMemcpyToArray(Hx_gp, 0, 0, Ho, nx*ny * sizeof(float), cudaMemcpyHostToDevice));
 
-		texU.addressMode[0] = cudaAddressModeWrap;
-		texU.addressMode[1] = cudaAddressModeWrap;
+		texU.addressMode[0] = cudaAddressModeClamp;
+		texU.addressMode[1] = cudaAddressModeClamp;
 		texU.filterMode = cudaFilterModeLinear;
 		texU.normalized = false;
 
 
 		CUDA_CHECK(cudaBindTextureToArray(texU, Ux_gp, channelDescU));
 
-		texV.addressMode[0] = cudaAddressModeWrap;
-		texV.addressMode[1] = cudaAddressModeWrap;
+		texV.addressMode[0] = cudaAddressModeClamp;
+		texV.addressMode[1] = cudaAddressModeClamp;
 		texV.filterMode = cudaFilterModeLinear;
 		texV.normalized = false;
 
 		CUDA_CHECK(cudaBindTextureToArray(texV, Vx_gp, channelDescV));
 
 
-		texH.addressMode[0] = cudaAddressModeWrap;
-		texH.addressMode[1] = cudaAddressModeWrap;
+		texH.addressMode[0] = cudaAddressModeClamp;
+		texH.addressMode[1] = cudaAddressModeClamp;
 		texH.filterMode = cudaFilterModeLinear;
 		texH.normalized = false;
 
@@ -588,29 +588,29 @@ int main(int argc, char **argv)
 		//CUDA_CHECK( cudaMemcpyToArray(lon_vgp, 0, 0, lon_v, netav*nxiv* sizeof(float), cudaMemcpyHostToDevice));
 		//CUDA_CHECK( cudaMemcpyToArray(lat_vgp, 0, 0, lat_v, netav*nxiv* sizeof(float), cudaMemcpyHostToDevice));
 
-		texlonu.addressMode[0] = cudaAddressModeWrap;
-		texlonu.addressMode[1] = cudaAddressModeWrap;
+		texlonu.addressMode[0] = cudaAddressModeClamp;
+		texlonu.addressMode[1] = cudaAddressModeClamp;
 		texlonu.filterMode = cudaFilterModeLinear;
 		texlonu.normalized = false;
 
 		CUDA_CHECK(cudaBindTextureToArray(texlonu, xcoord_gp, channelDescxcoord));
 
-		texlatu.addressMode[0] = cudaAddressModeWrap;
-		texlatu.addressMode[1] = cudaAddressModeWrap;
+		texlatu.addressMode[0] = cudaAddressModeClamp;
+		texlatu.addressMode[1] = cudaAddressModeClamp;
 		texlatu.filterMode = cudaFilterModeLinear;
 		texlatu.normalized = false;
 
 		CUDA_CHECK(cudaBindTextureToArray(texlatu, ycoord_gp, channelDescycoord));
 
-		texdXU.addressMode[0] = cudaAddressModeWrap;
-		texdXU.addressMode[1] = cudaAddressModeWrap;
+		texdXU.addressMode[0] = cudaAddressModeClamp;
+		texdXU.addressMode[1] = cudaAddressModeClamp;
 		texdXU.filterMode = cudaFilterModeLinear;
 		texdXU.normalized = false;
 
 		CUDA_CHECK(cudaBindTextureToArray(texdXU, distX_gp, channelDescdX));
 
-		texdYV.addressMode[0] = cudaAddressModeWrap;
-		texdYV.addressMode[1] = cudaAddressModeWrap;
+		texdYV.addressMode[0] = cudaAddressModeClamp;
+		texdYV.addressMode[1] = cudaAddressModeClamp;
 		texdYV.filterMode = cudaFilterModeLinear;
 		texdYV.normalized = false;
 

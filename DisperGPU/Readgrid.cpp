@@ -578,7 +578,7 @@ void readHDstep(HDParam HD, int steptoread, float *&Uo, float *&Vo, float *&hho)
 	//
 	int status;
 	int ncid;
-	float NanValU, NanValV, NanValH;
+	float NanValU=-9999, NanValV = -9999, NanValH = -9999;
 	int uu_id, vv_id, hh_id;
 	// step to read should be adjusted in each variables so that it keeps using the last output and teh model keeps on going
 	// right now the model will catch anexception 
@@ -605,8 +605,8 @@ void readHDstep(HDParam HD, int steptoread, float *&Uo, float *&Vo, float *&hho)
 	status = nc_get_vara_float(ncid, uu_id, startl, countlu, Uo);
 	if (status != NC_NOERR) handle_error(status);
 
-	status = nc_get_att_float(ncid, uu_id, "_FillValue", &NanValU);
-	if (status != NC_NOERR) handle_error(status);
+	//status = nc_get_att_float(ncid, uu_id, "_FillValue", &NanValU);
+	//if (status != NC_NOERR) handle_error(status);
 
 	status = nc_close(ncid);
 
@@ -620,8 +620,8 @@ void readHDstep(HDParam HD, int steptoread, float *&Uo, float *&Vo, float *&hho)
 	status = nc_get_vara_float(ncid, vv_id, startl, countlv, Vo);
 	if (status != NC_NOERR) handle_error(status);
 
-	status = nc_get_att_float(ncid, vv_id, "_FillValue", &NanValV);
-	if (status != NC_NOERR) handle_error(status);
+	//status = nc_get_att_float(ncid, vv_id, "_FillValue", &NanValV);
+	//if (status != NC_NOERR) handle_error(status);
 
 	status = nc_close(ncid);
 
@@ -637,8 +637,8 @@ void readHDstep(HDParam HD, int steptoread, float *&Uo, float *&Vo, float *&hho)
 	status = nc_get_vara_float(ncid, hh_id, startl, countlv, hho);
 	if (status != NC_NOERR) handle_error(status);
 
-	status = nc_get_att_float(ncid, hh_id, "_FillValue", &NanValH);
-	if (status != NC_NOERR) handle_error(status);
+	//status = nc_get_att_float(ncid, hh_id, "_FillValue", &NanValH);
+	//if (status != NC_NOERR) handle_error(status);
 
 	//printf("hho=%f\n", hho[10 + 330 * HD.nx]);
 	status = nc_close(ncid);

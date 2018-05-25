@@ -62,6 +62,7 @@ extern "C" void readseedfile(std::string seedfile,int npart,int nx,int ny, float
 		for (int v = 0; v < nvertx; v++)
 		{
 			fscanf(fseed,"%f,%f",&vertx[v],&verty[v]);
+			printf("Vx=%f; Vy=%f\n", vertx[v], verty[v]);
 
 		}
 		//printf("Vx[0]=%f; Vy[0]=%f\n", vertx[0], verty[0]);
@@ -106,10 +107,10 @@ extern "C" void readseedfile(std::string seedfile,int npart,int nx,int ny, float
 				pto = 0.0;
 				// check whether it is in the polygon
 				inpol = wn_PnPoly(pxo, pyo, vertx, verty, nvertx-1);
-				//printf("Rndx=%f; Rndy=%f\n", Rndx, Rndy);
+				//printf("pxo=%f; pyo=%f\n", pxo, pyo);
 				//if not try again
 			}
-			//printf("pxo=%f; pyo=%f\t", pxo, pyo);
+			printf("Sucess!...pxo=%f; pyo=%f\t", pxo, pyo);
 			xyz2ijk(nx, ny, xcoord, ycoord, pxi, pyj, pxo, pyo, pzo);
 			//printf("pxi=%f; pyi=%f\n", pxi, pyj);
 			partpos[np] = make_float4(pxi, pyj, pzo, pto);
