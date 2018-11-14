@@ -177,11 +177,13 @@ HDParam readgridsize(HDParam HD, float *&xcoord, float *&ycoord)
 	{
 		HD.ny = ddimhh[1];
 		HD.nx = ddimhh[2];
+		HD.ndim = 4;
 	}
 	else
 	{
 		HD.ny = ddimhh[0];
 		HD.nx = ddimhh[1];
+		HD.ndim = 3;
 	}
 	
 	//allocate
@@ -580,18 +582,85 @@ void readHDstep(HDParam HD, int steptoread, float *&Uo, float *&Vo, float *&hho)
 	int ncid;
 	float NanValU=-9999, NanValV = -9999, NanValH = -9999;
 	int uu_id, vv_id, hh_id;
+
+	size_t *startl, *countlu, *countlv;
+	ptrdiff_t *stridel;
 	// step to read should be adjusted in each variables so that it keeps using the last output and teh model keeps on going
 	// right now the model will catch anexception 
 	printf("Reading HD step: %d ...", steptoread);
 	//size_t startl[]={hdstep-1,lev,0,0};
 	//size_t countlu[]={1,1,netau,nxiu};
 	//size_t countlv[]={1,1,netav,nxiv};
-	size_t startl[] = { steptoread, 0, 0 };
-	size_t countlu[] = { 1, HD.ny, HD.nx };
-	size_t countlv[] = { 1, HD.ny, HD.nx };
+
+	size_t startlhh[] = { steptoread, 0, 0 };
+	size_t countlhh[] = { 1, HD.ny, HD.nx };
+	
+	static ptrdiff_t stridelhh[] = { 1, 1, 1 };
+
+	if (HD.ndim == 3)
+	{
+		//(float *)malloc(nx*ny*sizeof(float));
+		startl = (size_t *)malloc(3 * sizeof(size_t));
+		countlu = (size_t *)malloc(3 * sizeof(size_t));
+		countlv = (size_t *)malloc(3 * sizeof(size_t));
+		stridel = (ptrdiff_t*)malloc(3 * sizeof(ptrdiff_t));
+
+		startl[0] = steptoread;
+		startl[1] = 0;
+		startl[2] = 0;
+
+		countlu[0] = 1;
+		countlu[1] = HD.ny;
+		countlu[2] = HD.nx;
+
+		countlv[0] = 1;
+		countlv[1] = HD.ny;
+		countlv[2] = HD.nx;
+
+		stridel[0] = 1;
+		stridel[1] = 1;
+		stridel[2] = 1;
+		//size_t startl[] = { steptoread, 0, 0 };
+		//size_t countlu[] = { 1, HD.ny, HD.nx };
+		//size_t countlv[] = { 1, HD.ny, HD.nx };
+		//static ptrdiff_t stridel[] = { 1, 1, 1 };
+	}
+	else
+	{
+
+		startl = (size_t *)malloc(4 * sizeof(size_t));
+		countlu = (size_t *)malloc(4 * sizeof(size_t));
+		countlv = (size_t *)malloc(4 * sizeof(size_t));
+		stridel = (ptrdiff_t*)malloc(4 * sizeof(ptrdiff_t));
+
+		startl[0] = steptoread;
+		startl[1] = HD.lev;
+		startl[2] = 0;
+		startl[3] = 0;
+
+		countlu[0] = 1;
+		countlu[1] = 1;
+		countlu[2] = HD.ny;
+		countlu[3] = HD.nx;
+
+		countlv[0] = 1;
+		countlv[1] = 1;
+		countlv[2] = HD.ny;
+		countlv[3] = HD.nx;
+
+		stridel[0] = 1;
+		stridel[1] = 1;
+		stridel[2] = 1;
+		stridel[3] = 1;
+		//size_t startl[] = { steptoread, HD.lev, 0, 0 };
+		//size_t countlu[] = { 1, 1, HD.ny, HD.nx };
+		//size_t countlv[] = { 1, 1, HD.ny, HD.nx };
+		//static ptrdiff_t stridel[] = { 1, 1, 1 ,1};
+	}
+	
 
 	//static ptrdiff_t stridel[]={1,1,1,1};
-	static ptrdiff_t stridel[] = { 1, 1, 1 };
+	
 
 	//Open NC file
 
@@ -605,8 +674,18 @@ void readHDstep(HDParam HD, int steptoread, float *&Uo, float *&Vo, float *&hho)
 	status = nc_get_vara_float(ncid, uu_id, startl, countlu, Uo);
 	if (status != NC_NOERR) handle_error(status);
 
+
 	//status = nc_get_att_float(ncid, uu_id, "_FillValue", &NanValU);
 	//if (status != NC_NOERR) handle_error(status);
+
+	//
+	//status = nc_inq_att(ncid, uu_id, "_FillValue")
+	status = nc_get_att_float(ncid, uu_id, "_FillValue", &NanValU);
+	if (status != NC_NOERR)
+	{
+		NanValU = 0.0f;
+	}
+
 
 	status = nc_close(ncid);
 
@@ -620,8 +699,15 @@ void readHDstep(HDParam HD, int steptoread, float *&Uo, float *&Vo, float *&hho)
 	status = nc_get_vara_float(ncid, vv_id, startl, countlv, Vo);
 	if (status != NC_NOERR) handle_error(status);
 
+
 	//status = nc_get_att_float(ncid, vv_id, "_FillValue", &NanValV);
 	//if (status != NC_NOERR) handle_error(status);
+	status = nc_get_att_float(ncid, vv_id, "_FillValue", &NanValV);
+	if (status != NC_NOERR)
+	{
+		NanValV = 0.0f;
+	}
+
 
 	status = nc_close(ncid);
 
@@ -634,11 +720,19 @@ void readHDstep(HDParam HD, int steptoread, float *&Uo, float *&Vo, float *&hho)
 
 	
 	
-	status = nc_get_vara_float(ncid, hh_id, startl, countlv, hho);
+	status = nc_get_vara_float(ncid, hh_id, startlhh, countlhh, hho);
 	if (status != NC_NOERR) handle_error(status);
+
 
 	//status = nc_get_att_float(ncid, hh_id, "_FillValue", &NanValH);
 	//if (status != NC_NOERR) handle_error(status);
+
+	status = nc_get_att_float(ncid, hh_id, "_FillValue", &NanValH);
+	if (status != NC_NOERR)
+	{
+		NanValH = 0.0f;
+	}
+
 
 	//printf("hho=%f\n", hho[10 + 330 * HD.nx]);
 	status = nc_close(ncid);
@@ -680,7 +774,7 @@ void readHDstep(HDParam HD, int steptoread, float *&Uo, float *&Vo, float *&hho)
 		}
 	}
 
-	printf("Uo=%f\n", Uo[10 + 330 * HD.nx]);
+	//printf("Uo=%f\n", Uo[10 + 330 * HD.nx]);
 
 	//Set land flag to 0.0m/s to allow particle to stick to the coast
 

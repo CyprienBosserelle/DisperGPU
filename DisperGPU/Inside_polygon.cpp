@@ -49,7 +49,6 @@ int cn_PnPoly(float Px,float Py, float* Vx,float *Vy, int n)
 }
 //===================================================================
 
-
 // wn_PnPoly(): winding number test for a point in a polygon
 //      Input:   P = a point,
 //               V[] = vertex points of a polygon V[n+1] with V[n]=V[0]
@@ -74,3 +73,5 @@ int wn_PnPoly(float Px, float Py, float* Vx, float* Vy, int n)
 	return wn;
 }
 //===================================================================
+
+

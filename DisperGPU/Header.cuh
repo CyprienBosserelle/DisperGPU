@@ -114,7 +114,7 @@ public:
 	int geocoord;
 	int zs2hh=0; //Input is water level (zs) rather than water depth (hh), this will trigger a correction and require a bathymetry input
 
-
+	int ndim=0;
 
 };
 
