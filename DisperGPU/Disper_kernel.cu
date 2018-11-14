@@ -145,6 +145,96 @@ __global__ void updatepartpos(int npart, float dt, float Eh,float mindepth, floa
 
 
 }
+__global__ void updatewoodpos(int npart, float dt, float Eh, float mindepth, float * dd_rand, float4 * partpos)
+{
+	int i = blockIdx.x * blockDim.x * blockDim.y + blockDim.x * threadIdx.y + threadIdx.x;
+
+	float Ux = 0.0f; //Velocity at wood centre of G
+	float Vx = 0.0f;
+	float Us = 0.0f;//Velocity at wood start
+	float Ue = 0.0f;//Velocity at wood end
+	float Vs = 0.0f;
+	float Ve = 0.0f;
+	float Hx = 1.0f;
+	float Xd = 0.0f; //Diffusion term
+	float Yd = 0.0f;
+
+	float distu, distv;
+	float Lw, Aw, Dw, Asub, rhow, Cd, alphaw, thetaw;
+	float U,Ulim,Ulog,g,rho,mubed;
+
+	float xxx, yyy, zzz, ttt;
+
+	xxx = partpos[i].x; //should be in i,j
+	yyy = partpos[i].y;
+	zzz = partpos[i].z;
+	ttt = partpos[i].w;
+	Lw = 10.0f;
+	alphaw = 0.0f;
+	thetaw = 0.0f;
+	Dw = 0.3f;
+	g = 9.81f;
+	rhow = 900.0f;
+	rho = 1000.0f;
+	mubed = 0.1f;
+	Ulim = 0.0f;
+
+	if (ttt >= 0.0f)
+	{
+		//Interpolate wter depth, Uvel Vvel at the particle position
+
+		
+		distu = tex2D(texdXU, xxx, yyy);
+		distv = tex2D(texdYV, xxx + 0.5, yyy - 0.5);
+
+		Ux = tex2D(texU, xxx, yyy);
+		Vx = tex2D(texV, xxx + 0.5, yyy - 0.5);// U and V don't have the same coordinates but in the number of nodes it is just off by half a grid node in both dimension
+		Hx = tex2D(texH, xxx, yyy);
+
+		if (Hx <= Dw)
+		{
+			Aw = pi*Dw*Dw / 4.0f;
+			Asub = pi*Hx*Hx / 4.0f;
+
+			Ulim = ((g*rhow*Lw*Aw) - (g*rho*Asub*Lw))*(mubed*cosf(alphaw) - sinf(alphaw)) / (0.5f*Cd*rho*(Lw*Hx*sinf(thetaw) + Aw*cosf(thetaw)));
+			Ulim = sqrtf(Ulim);
+		}
+
+		U = sqrt(Ux*Ux + Vx*Vx);
+
+		Ulog = max(U - Ulim, 0.0f);
+
+		Ux = Ux*Ulog / max(U, 0.000001f); // Wait all this is ointless if U is zeor then nothing moves...
+		Vx = Vx*Ulog / max(U, 0.000001f);
+
+		
+		if (distu>0.0001 && distv>0.0001)//Avoid the div by zero which makes i and j #INF
+		{
+			//if (Hx >= mindepth)
+			{
+				// old formulation
+				//Xd=(dd_rand[i]*2-1)*sqrtf(6*Eh*dt);
+				//Yd=(dd_rand[npart-i]*2-1)*sqrtf(6*Eh*dt);
+
+				//formulation used in Viikmae et al.
+				Xd = sqrtf(-4.0f * Eh*dt*logf(1 - dd_rand[i]))*cosf(2.0f * pi*dd_rand[npart - i]);
+				Yd = sqrtf(-4.0f * Eh*dt*logf(1 - dd_rand[i]))*sinf(2.0f * pi*dd_rand[npart - i]);
+
+				xxx = xxx + (Ux*dt + Xd) / distu;
+				yyy = yyy + (Vx*dt + Yd) / distv;
+				zzz = zzz;
+			}
+		}
+	}
+
+	ttt = ttt + dt;
+	partpos[i] = make_float4(xxx, yyy, zzz, ttt);
+
+
+
+
+}
+
 
 
 __global__ void updatepartposQ3D(int npart, float dt, float Eh, float Ev, float mindepth, float ws, float * dd_rand, float4 * partpos)
