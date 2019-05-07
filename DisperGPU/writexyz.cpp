@@ -28,16 +28,19 @@ void writexyz(int npart,int nx, int ny,float * xcoord, float * ycoord, float4 * 
 
 	for (int i=0; i<npart; i++)
 	{
-		float xi = partpos[i].x;
-		float yj = partpos[i].y;
+		float xi = max(min(partpos[i].x, (float)(nx - 1.0f)),0.0f);
+		float yj = max(min(partpos[i].y, (float)(ny - 1.0f)), 0.0f);
 		float t = partpos[i].w;
 
 
 		float realx, realy;
+		if (isfinite(xi) && isfinite(yj))
+		{
 
-		realx= interp2posCPU(nx, ny, xi, yj, xcoord);
-		realy = interp2posCPU(nx, ny, xi, yj, ycoord);
-
+			realx = interp2posCPU(nx, ny, xi, yj, xcoord);
+			realy = interp2posCPU(nx, ny, xi, yj, ycoord);
+		}
+		//else garbage?
 
 		//if(t>=0.0f)// Do not output particle that haven't been released yet
 		{
@@ -147,13 +150,18 @@ void creatncfile(std::string outfile, int nx,int ny,int np,float *xval, float *y
 
 		float realx, realy;
 		float xi, yj;
+		
+		//xi = PartPos[p].x;
+		//yj = PartPos[p].y;
+		
+		xi = max(min(PartPos[p].x, (float)(nx - 1.0f)), 0.0f);
+		yj = max(min(PartPos[p].y, (float)(ny - 1.0f)), 0.0f);
 
-		xi = PartPos[p].x;
-		yj = PartPos[p].y;
-
-		realx = interp2posCPU(nx, ny, xi, yj, xval);
-		realy = interp2posCPU(nx, ny, xi, yj, yval);
-
+		if (isfinite(xi) && isfinite(yj))
+		{
+			realx = interp2posCPU(nx, ny, xi, yj, xval);
+			realy = interp2posCPU(nx, ny, xi, yj, yval);
+		}
 		float ppp[] = { realx, realy, PartPos[p].z, PartPos[p].w, xi, yj };
 
 		status = nc_put_vara_float(ncid, PPos_id, pstart, pcount, ppp);
@@ -223,12 +231,17 @@ void writestep2nc(std::string outfile, int nx,int ny,int np, float totaltime,flo
 		float realx, realy;
 		float xi, yj;
 
-		xi = PartPos[p].x;
-		yj = PartPos[p].y;
+		//xi = PartPos[p].x;
+		//yj = PartPos[p].y;
 
-		realx = interp2posCPU(nx, ny, xi, yj, xval);
-		realy = interp2posCPU(nx, ny, xi, yj, yval);
+		xi = max(min(PartPos[p].x, (float)(nx - 1.0f)), 0.0f);
+		yj = max(min(PartPos[p].y, (float)(ny - 1.0f)), 0.0f);
 
+		if (isfinite(xi) && isfinite(yj)) 
+		{
+			realx = interp2posCPU(nx, ny, xi, yj, xval);
+			realy = interp2posCPU(nx, ny, xi, yj, yval);
+		}
 		float ppp[] = { realx, realy, PartPos[p].z, PartPos[p].w, xi, yj };
 
 		status = nc_put_vara_float(ncid, PPos_id, pstart, pcount, ppp);

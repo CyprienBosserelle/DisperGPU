@@ -167,8 +167,8 @@ HDParam GPUstep(Param Dparam, HDParam HD)
 	//Calculate particle step
 
 
-	//updatepartpos <<<gridDim, blockDim, 0 >>>(np, Dparam.dt, Dparam.Eh, Dparam.minrwdepth, d_Rand, partpos_g);
-	updatepartposQ3D << <gridDim, blockDim, 0 >> > (np, Dparam.dt, Dparam.Eh, Dparam.Eh*0.5f, Dparam.minrwdepth, 0.00483f, d_Rand, partpos_g);
+	updatepartpos <<<gridDim, blockDim, 0 >>>(np, Dparam.dt, Dparam.Eh, Dparam.minrwdepth, d_Rand, partpos_g);
+	//updatepartposQ3D << <gridDim, blockDim, 0 >> > (np, Dparam.dt, Dparam.Eh, Dparam.Eh*0.5f, Dparam.minrwdepth, 0.00483f, d_Rand, partpos_g);
 	
 	CUDA_CHECK(cudaDeviceSynchronize());
 

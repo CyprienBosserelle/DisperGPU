@@ -177,7 +177,7 @@ HDParam readgridsize(HDParam HD, float *&xcoord, float *&ycoord)
 	{
 		HD.ny = ddimhh[1];
 		HD.nx = ddimhh[2];
-		HD.ndim = 4;
+		HD.ndim = 3;
 	}
 	else
 	{
@@ -675,6 +675,7 @@ void readHDstep(HDParam HD, int steptoread, float *&Uo, float *&Vo, float *&hho)
 	if (status != NC_NOERR) handle_error(status);
 
 
+
 	//status = nc_get_att_float(ncid, uu_id, "_FillValue", &NanValU);
 	//if (status != NC_NOERR) handle_error(status);
 
@@ -734,7 +735,8 @@ void readHDstep(HDParam HD, int steptoread, float *&Uo, float *&Vo, float *&hho)
 	}
 
 
-	//printf("hho=%f\n", hho[10 + 330 * HD.nx]);
+	//printf("hho=%f\n", hho[37 + 35 * HD.nx]);
+
 	status = nc_close(ncid);
 	
 	for (int i = 0; i<HD.nx; i++)
@@ -774,7 +776,7 @@ void readHDstep(HDParam HD, int steptoread, float *&Uo, float *&Vo, float *&hho)
 		}
 	}
 
-	//printf("Uo=%f\n", Uo[10 + 330 * HD.nx]);
+	
 
 	//Set land flag to 0.0m/s to allow particle to stick to the coast
 
@@ -840,6 +842,10 @@ void readHDstep(HDParam HD, int steptoread, float *&Uo, float *&Vo, float *&hho)
 				if (hho[i + j*HD.nx] == NanValH)
 				{
 					hho[i + j*HD.nx] = 0.0f;
+				}
+				else
+				{
+					hho[i + j*HD.nx] = hho[i + j*HD.nx] * HD.Hscale + HD.Hoffset;
 				}
 			}
 		}
