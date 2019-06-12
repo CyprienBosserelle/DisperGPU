@@ -33,7 +33,8 @@ void writexyz(int npart,int nx, int ny,float * xcoord, float * ycoord, float4 * 
 		float t = partpos[i].w;
 
 
-		float realx, realy;
+		float realx = NAN;
+		float realy = NAN;
 		if (isfinite(xi) && isfinite(yj))
 		{
 
@@ -148,7 +149,8 @@ void creatncfile(std::string outfile, int nx,int ny,int np,float *xval, float *y
 		pstart[1] = p;
 		pstart[2] = 0;
 
-		float realx, realy;
+		float realx = NAN;
+		float realy = NAN;
 		float xi, yj;
 		
 		//xi = PartPos[p].x;
@@ -228,7 +230,8 @@ void writestep2nc(std::string outfile, int nx,int ny,int np, float totaltime,flo
 	
 		
 
-		float realx, realy;
+		float realx = NAN;
+		float realy = NAN;
 		float xi, yj;
 
 		//xi = PartPos[p].x;
