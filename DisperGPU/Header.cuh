@@ -103,7 +103,7 @@ public:
 	int nxu, nxv, nxhh;
 	int nyu, nyv, nyhh;
 
-
+	int gridtype = 0; //0: central scheme where u,v and hh are co-located; || 1: Staggered grid 
 
 
 	double hddt; // HD model tme step
@@ -114,7 +114,7 @@ public:
 	int geocoord;
 	int zs2hh=0; //Input is water level (zs) rather than water depth (hh), this will trigger a correction and require a bathymetry input
 
-	int ndim=0;
+	int ndim=3;
 
 };
 

@@ -45,9 +45,55 @@ template <class T> const T& round(const T& a)
   return floor( a + 0.5 );
   }
 
+int readvarinfo(std::string filename, std::string Varname, size_t *&ddimU)
+{
+	// This function reads the dimentions for each variables
+	int status, varid;
+	int ncid, ndims;
+	int dimids[NC_MAX_VAR_DIMS];
+	//Open NC file
+	//printf("Open file\n");
+
+	status = nc_open(filename.c_str(), 0, &ncid);
+	if (status != NC_NOERR) handle_error(status);
+
+	//inquire variable by name
+	//printf("Reading information about %s...", Varname.c_str());
+	status = nc_inq_varid(ncid, Varname.c_str(), &varid);
+	if (status != NC_NOERR) handle_error(status);
+
+	status = nc_inq_varndims(ncid, varid, &ndims);
+	if (status != NC_NOERR) handle_error(status);
+
+
+	status = nc_inq_vardimid(ncid, varid, dimids);
+	if (status != NC_NOERR) handle_error(status);
+
+	ddimU = (size_t *)malloc(ndims*sizeof(size_t));
+
+	//Read dimensions nx_u ny_u 
+	for (int iddim = 0; iddim < ndims; iddim++)
+	{
+		status = nc_inq_dimlen(ncid, dimids[iddim], &ddimU[iddim]);
+		if (status != NC_NOERR) handle_error(status);
+
+		//printf("dim:%d=%d\n", iddim, ddimU[iddim]);
+	}
+
+
+	status = nc_close(ncid);
+
+	return ndims;
+}
 
 HDParam readgridsize(HDParam HD, float *&xcoord, float *&ycoord)
 {
+	// This function reads the fundemental information about the inout hydrodynamics.
+	// For central scheme grids Basilisk and BG U, V and h/zs are at the same coordinate so it is simple
+	// For Staggered grids like ROMS and Delft3D, u and v are  corrdinate as hh/zs and in ROMS a diffrent grid size
+	// Therefore we need to be careful about that for the particle i and j this is relative to the hh grid
+
+
 	//read the dimentions of grid, levels and time 
 	int status;
 	int ncid, ndimsU, ndimsV, ndimshh,ndims;
@@ -71,95 +117,18 @@ HDParam readgridsize(HDParam HD, float *&xcoord, float *&ycoord)
 
 	//inquire variable by name
 	printf("Reading information about %s...",HD.Uvarname.c_str());
-	status = nc_inq_varid(ncid, HD.Uvarname.c_str(), &varid);
-
-	if (status != NC_NOERR) 
-		handle_error(status);
-	
-	status = nc_inq_varndims(ncid, varid, &ndimsU);
-	if (status != NC_NOERR) handle_error(status);
-	
-
-	status = nc_inq_vardimid(ncid, varid, dimids);
-	if (status != NC_NOERR) handle_error(status);
-
-	ddimU = (size_t *)malloc(ndimsU*sizeof(size_t));
-
-	//Read dimensions nx_u ny_u 
-	for (int iddim = 0; iddim < ndimsU; iddim++)
-	{
-		status = nc_inq_dimlen(ncid, dimids[iddim], &ddimU[iddim]);
-		if (status != NC_NOERR) handle_error(status);
-
-		//printf("dim:%d=%d\n", iddim, ddimU[iddim]);
-	}
 
 
-	status = nc_close(ncid);
+	ndimsU=readvarinfo(HD.ncfileU, HD.Uvarname, ddimU);
 
 
 	printf(" %s...", HD.Vvarname.c_str());
 
-	status = nc_open(HD.ncfileV.c_str(), 0, &ncid);
-	if (status != NC_NOERR) handle_error(status);
-
-	status = nc_inq_varid(ncid, HD.Vvarname.c_str(), &varid);
-
-	if (status != NC_NOERR)
-		handle_error(status);
-	
-
-
-	status = nc_inq_varndims(ncid, varid, &ndimsV);
-	if (status != NC_NOERR) handle_error(status);
-	//printf("VVar:%d dims\n", ndimsV);
-
-	status = nc_inq_vardimid(ncid, varid, dimids);
-	if (status != NC_NOERR) handle_error(status);
-
-	ddimV = (size_t *)malloc(ndimsV*sizeof(size_t));
-
-	//Read dimensions nx_u ny_u 
-	for (int iddim = 0; iddim < ndimsV; iddim++)
-	{
-		status = nc_inq_dimlen(ncid, dimids[iddim], &ddimV[iddim]);
-		if (status != NC_NOERR) handle_error(status);
-
-		//printf("dim:%d=%d\n", iddim, ddimV[iddim]);
-	}
-
-	status = nc_close(ncid);
-
-	status = nc_open(HD.ncfileH.c_str(), 0, &ncid);
-	if (status != NC_NOERR) handle_error(status);
-
+	ndimsV=readvarinfo(HD.ncfileV, HD.Vvarname, ddimV);
 
 	printf(" %s...\n", HD.Hvarname.c_str());
-	status = nc_inq_varid(ncid, HD.Hvarname.c_str(), &varid);
 
-	if (status != NC_NOERR)
-		handle_error(status);
-	
-
-
-	status = nc_inq_varndims(ncid, varid, &ndimshh);
-	if (status != NC_NOERR) handle_error(status);
-	//printf("hhVar:%d dims\n", ndimshh);
-
-	status = nc_inq_vardimid(ncid, varid, dimids);
-	if (status != NC_NOERR) handle_error(status);
-
-	ddimhh = (size_t *)malloc(ndimshh*sizeof(size_t));
-
-	//Read dimensions nx_u ny_u 
-	for (int iddim = 0; iddim < ndimshh; iddim++)
-	{
-		status = nc_inq_dimlen(ncid, dimids[iddim], &ddimhh[iddim]);
-		if (status != NC_NOERR) handle_error(status);
-
-		//printf("dim:%d=%d\n", iddim, ddimhh[iddim]);
-	}
-
+	ndimshh=readvarinfo(HD.ncfileH, HD.Hvarname, ddimhh);
 	
 
 	if (ndimsU != ndimsV || ndimsU<3){
@@ -167,29 +136,76 @@ HDParam readgridsize(HDParam HD, float *&xcoord, float *&ycoord)
 	}
 	
 
-	HD.nt = ddimV[0];
-	if (ndimsU > 3){
-		printf("U Variable is 4D\n");
-		nlev = ddimV[1];
-	}
-
-	if (ndimshh > 2)
+	
+	// By default we expect HD.ndim = 3;  i.e. a 2D hydrodynamics input (x, y, time )
+	if (ndimsU < 2)
 	{
-		HD.ny = ddimhh[1];
-		HD.nx = ddimhh[2];
+		//Error
+	}
+	else if (ndimsU < 3)
+	{
+		// No time dimension so hh U and V will be considered uniform in time
+		HD.nyu = ddimU[0];
+		HD.nxu = ddimU[1];
+		HD.nyv = ddimV[0];// Should be same as u and hh in central scheme and D3D but not in ROMS
+		HD.nxv = ddimV[1];
+		HD.nt = 0;
+		// This is not handled properly yet
+		// 
+	}
+	else if (ndimsU < 4)
+	{
+		HD.nt = ddimV[0];
+		HD.nyu = ddimU[1];
+		HD.nxu = ddimU[2];
+
+		HD.nyv = ddimV[1];// Should be same as u and hh in central scheme and D3D but not in ROMS
+		HD.nxv = ddimV[2];
+
 		HD.ndim = 3;
 	}
 	else
 	{
+		printf("U & V Variables are 4D\n");
+		HD.nt = ddimV[0];
+		nlev = ddimV[1]; //ddimV or U should be the same
+		HD.nyu = ddimU[2];
+		HD.nxu = ddimU[3];
+
+		HD.nyv = ddimV[2];// Should be same as u and hh in central scheme and D3D but not in ROMS
+		HD.nxv = ddimV[3];
+
+		HD.ndim = 4; // 3D hydrodynamics
+	}
+
+	if (ndimshh < 2)
+	{
+		//Error?
+	}
+	else if (ndimshh < 3)
+	{
 		HD.ny = ddimhh[0];
 		HD.nx = ddimhh[1];
-		HD.ndim = 3;
+		HD.ndim = 2; // No time dimension so hh U and V will be considered uniform in time
+		// This is not handled properly by the model yet
+	}
+	else if (ndimshh<4)
+	{
+		HD.ny = ddimhh[1];
+		HD.nx = ddimhh[2];
 	}
 	
 	//allocate
 	xcoord = (float *)malloc(HD.nx*HD.ny*sizeof(float));
 	ycoord = (float *)malloc(HD.nx*HD.ny*sizeof(float));
 	
+
+	// THis is wrong below
+	// The software should check whether the netcdf file for 2d hh is coards complient with a variable name identical to x and y dims
+	// otherwise the code should rely on user input for x var name and yvar name especially for curvilinear grids
+
+
+
 	//inquire variable name for x dimension
 	//aka x dim of hh
 	int ycovar,xcovar;
