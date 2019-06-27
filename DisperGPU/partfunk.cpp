@@ -9,11 +9,11 @@
 
 
 
-void CalcDistXY(int nx, int ny, int geocoord, float *xcoord, float * ycoord, float * &distX,float *&distY)
+void CalcDistXY(int nx, int ny, int geocoord, float *xcoord, float * ycoord, float * &distX, float *&distY)
 {
 	//Calculate the distance in meter between each cells for u grid 
 	float R = 6372797.560856f;
-
+	float epss = 0.000001; // minimum distance for curvilinear masked array where x=0 and y=0 this is to avoid dividing by 0 later
 	for (int i = 0; i < nx - 1; i++)
 	{
 		for (int j = 0; j < ny; j++)
@@ -28,10 +28,14 @@ void CalcDistXY(int nx, int ny, int geocoord, float *xcoord, float * ycoord, flo
 
 				float a = sin(dlat / 2)*sin(dlat / 2) + cos(lat1)*cos(lat2)*sin(dlon / 2)*sin(dlon / 2);
 				float c = 2 * atan2f(sqrtf(a), sqrtf(1 - a));
-				distX[i + j*nx] = c*R;
+				distX[i + j*nx] = max(c*R,epss);
 			}
-			else{
-				distX[i + j*nx] = xcoord[(i + 1) + j*nx] - xcoord[i + j*nx];
+			else
+			{
+				float dx = xcoord[(i + 1) + j*nx] - xcoord[i + j*nx];
+				float dy = ycoord[(i + 1) + j*nx] - ycoord[i + j*nx];
+
+				distX[i + j*nx] = max(sqrt(dx*dx+dy*dy),epss);
 			}
 
 
@@ -51,10 +55,12 @@ void CalcDistXY(int nx, int ny, int geocoord, float *xcoord, float * ycoord, flo
 
 				float a = sin(dlat / 2)*sin(dlat / 2) + cos(lat1)*cos(lat2)*sin(dlon / 2)*sin(dlon / 2);
 				float c = 2 * atan2f(sqrtf(a), sqrtf(1 - a));
-				distY[i + j*nx] = c*R;
+				distY[i + j*nx] = max(c*R,epss);
 			}
 			else{
-				distY[i + j*nx] = ycoord[i + (j + 1)*nx] - ycoord[i + j*nx];
+				float dx = xcoord[i + (j + 1)*nx] - xcoord[i + j*nx];
+				float dy = ycoord[i + (j + 1)*nx] - ycoord[i + j*nx];
+				distY[i + j*nx] = max(sqrt(dx*dx+dy*dy),epss);
 			}
 		}
 	}

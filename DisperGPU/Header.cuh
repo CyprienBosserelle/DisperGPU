@@ -89,7 +89,8 @@ public:
 	std::string Vvarname;
 	std::string Hvarname;
 	std::string ZBvarname;// Only required when input is zs intead of hh
-
+	std::string Xvarname;
+	std::string Yvarname;
 
 	//Velocity used in the model is Velnetcdf*Vscale+Voffset
 	double Vscale = 1.0;
@@ -104,7 +105,7 @@ public:
 	int nyu, nyv, nyhh;
 
 	int gridtype = 0; //0: central scheme where u,v and hh are co-located; || 1: Staggered grid 
-
+	int curvil = 0; //Curvilinear grid flag. 
 
 	double hddt; // HD model tme step
 	int hdstep;

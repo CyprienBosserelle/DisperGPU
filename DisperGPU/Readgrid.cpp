@@ -86,6 +86,81 @@ int readvarinfo(std::string filename, std::string Varname, size_t *&ddimU)
 	return ndims;
 }
 
+void readcoord(HDParam HD,std::string filename, int xflag, float *&coord)
+{
+	// This function reads the coordinates from the netcdf files
+	// xflag is whether we read x coordinate (xflag=1) or y corrdinate xflag=0
+	int status, varid;
+	int ncid, ndims;
+	int nn;
+	std::string coordname;
+
+	if (xflag == 1)
+	{
+		nn = HD.nx;
+		coordname = HD.Xvarname;
+	}
+	else
+	{
+		nn = HD.ny;
+		coordname = HD.Yvarname;
+	}
+
+
+	status = nc_open(filename.c_str(), 0, &ncid);
+	if (status != NC_NOERR) handle_error(status);
+
+	status = nc_inq_varid(ncid, coordname.c_str(), &varid);
+	if (status != NC_NOERR) handle_error(status);
+
+	status = nc_inq_varndims(ncid, varid, &ndims);
+	if (status != NC_NOERR) handle_error(status);
+
+	if (ndims < 2)
+	{
+		float * ytempvar;
+		ytempvar = (float *)malloc(nn*sizeof(float));
+		size_t start[] = { 0 };
+		size_t count[] = { nn };
+		status = nc_get_vara_float(ncid, varid, start, count, ytempvar);
+		if (status != NC_NOERR) handle_error(status);
+
+		//int nno = HD.nx*HD.ny / nn;
+		int k;
+		for (int i = 0; i<HD.nx; i++)
+		{
+			for (int j = 0; j<HD.ny; j++)
+			{
+				if (xflag == 1)
+				{
+					k = i;
+				}
+				else
+				{
+					k = j;
+				}
+
+				coord[i + j*HD.nx] = ytempvar[k];
+
+			}
+		}
+		free(ytempvar);
+	}
+	else
+	{
+		size_t start[] = { 0, 0 };
+		size_t count[] = { HD.ny, HD.nx };
+		status = nc_get_vara_float(ncid, varid, start, count, coord);
+		if (status != NC_NOERR) handle_error(status);
+
+	}
+
+	status = nc_close(ncid);
+	
+
+
+}
+
 HDParam readgridsize(HDParam HD, float *&xcoord, float *&ycoord)
 {
 	// This function reads the fundemental information about the inout hydrodynamics.
@@ -102,7 +177,8 @@ HDParam readgridsize(HDParam HD, float *&xcoord, float *&ycoord)
 	
 	
 	int dimids[NC_MAX_VAR_DIMS];   /* dimension IDs */
-	char coordname[NC_MAX_NAME + 1];
+	char Xcoordname[NC_MAX_NAME + 1];
+	char Ycoordname[NC_MAX_NAME + 1];
 	size_t *ddimU, *ddimV,*ddimhh;
 	//char ncfile[]="ocean_ausnwsrstwq2.nc";
 
@@ -200,14 +276,12 @@ HDParam readgridsize(HDParam HD, float *&xcoord, float *&ycoord)
 	ycoord = (float *)malloc(HD.nx*HD.ny*sizeof(float));
 	
 
-	// THis is wrong below
-	// The software should check whether the netcdf file for 2d hh is coards complient with a variable name identical to x and y dims
-	// otherwise the code should rely on user input for x var name and yvar name especially for curvilinear grids
+	
+	// for regular grid that follow the coards convention:
 
+	//inquire variable name for x and y dimension of hh
 
-
-	//inquire variable name for x dimension
-	//aka x dim of hh
+	
 	int ycovar,xcovar;
 	
 	if (ndimshh > 2)
@@ -222,86 +296,37 @@ HDParam readgridsize(HDParam HD, float *&xcoord, float *&ycoord)
 	}
 
 	//ycoord
-
-	status = nc_inq_dimname(ncid, ycovar, coordname);
-	if (status != NC_NOERR) handle_error(status);
-
-	status = nc_inq_varid(ncid, coordname, &varid);
-	if (status != NC_NOERR) handle_error(status);
-
-	status = nc_inq_varndims(ncid, varid, &ndims);
-	if (status != NC_NOERR) handle_error(status);
-
-	if (ndims < 2)
+	if (HD.curvil == 0)
 	{
-		float * ytempvar;
-		ytempvar = (float *)malloc(HD.ny*sizeof(float));
-		size_t start[] = { 0};
-		size_t count[] = { HD.ny};
-		status = nc_get_vara_float(ncid, varid, start, count, ytempvar);
+		status = nc_inq_dimname(ncid, ycovar, Ycoordname);
 		if (status != NC_NOERR) handle_error(status);
 
-		for (int i = 0; i<HD.nx; i++)
+		HD.Yvarname = Ycoordname;
+
+		status = nc_inq_dimname(ncid, xcovar, Xcoordname);
+		if (status != NC_NOERR) handle_error(status);
+
+		HD.Xvarname = Xcoordname;
+
+	}
+
+	
+
+	
+
+	//readcoord(HDParam HD, std::string filename, int xflag, float *&coord)
+	readcoord(HD, HD.ncfileH, 0, ycoord);
+	readcoord(HD, HD.ncfileH, 1, xcoord);
+
+
+	//for debugging
+	for (int i = 0; i < HD.nx; i++)
+	{
+		for (int j = 0; j < HD.ny; j++)
 		{
-			for (int j = 0; j<HD.ny; j++)
-			{
-				
-				ycoord[i + j*HD.nx] = ytempvar[j];
-				
-			}
+			printf("%f\t%f\n", xcoord[i + j*HD.nx], ycoord[i + j*HD.nx]);
 		}
 	}
-	else
-	{
-		size_t start[] = { 0, 0 };
-		size_t count[] = { HD.ny, HD.nx };
-		status = nc_get_vara_float(ncid, varid, start, count, ycoord);
-		if (status != NC_NOERR) handle_error(status);
-			
-	}
-	//xcoord
-	status = nc_inq_dimname(ncid, xcovar, coordname);
-	if (status != NC_NOERR) handle_error(status);
-
-	status = nc_inq_varid(ncid, coordname, &varid);
-	if (status != NC_NOERR) handle_error(status);
-
-	status = nc_inq_varndims(ncid, varid, &ndims);
-	if (status != NC_NOERR) handle_error(status);
-
-	if (ndims < 2)
-	{
-		float * xtempvar;
-		xtempvar = (float *)malloc(HD.nx*sizeof(float));
-		size_t start[] = { 0 };
-		size_t count[] = { HD.nx };
-		status = nc_get_vara_float(ncid, varid, start, count, xtempvar);
-		if (status != NC_NOERR) handle_error(status);
-
-		for (int i = 0; i<HD.nx; i++)
-		{
-			for (int j = 0; j<HD.ny; j++)
-			{
-
-				xcoord[i + j*HD.nx] = xtempvar[i];
-
-			}
-		}
-	}
-	else
-	{
-		size_t start[] = { 0, 0 };
-		size_t count[] = { HD.ny, HD.nx };
-		status = nc_get_vara_float(ncid, varid, start, count, xcoord);
-		if (status != NC_NOERR) handle_error(status);
-
-	}
-
-
-
-
-
-	status = nc_close(ncid);
 
 	return HD;
 

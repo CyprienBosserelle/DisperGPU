@@ -218,7 +218,36 @@ HDParam readHDparamstr(std::string line, HDParam param)
 		param.ZBvarname = parametervalue;
 	}
 
+	parameterstr = "Xvarname";
+	parametervalue = findparameter(parameterstr, line);
+	if (!parametervalue.empty())
+	{
+		param.Xvarname = parametervalue;
+	}
+
+	parameterstr = "Yvarname";
+	parametervalue = findparameter(parameterstr, line);
+	if (!parametervalue.empty())
+	{
+		param.Yvarname = parametervalue;
+	}
+
 	//
+
+	parameterstr = "curvil";
+	parametervalue = findparameter(parameterstr, line);
+	if (!parametervalue.empty())
+	{
+		param.curvil = std::stoi(parametervalue);
+	}
+
+	parameterstr = "gridtype";
+	parametervalue = findparameter(parameterstr, line);
+	if (!parametervalue.empty())
+	{
+		param.gridtype = std::stoi(parametervalue);
+	}
+
 	parameterstr = "hdstart";
 	parametervalue = findparameter(parameterstr, line);
 	if (!parametervalue.empty())
