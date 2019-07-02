@@ -320,6 +320,7 @@ HDParam readgridsize(HDParam HD, float *&xcoord, float *&ycoord)
 
 
 	//for debugging
+	/*
 	for (int i = 0; i < HD.nx; i++)
 	{
 		for (int j = 0; j < HD.ny; j++)
@@ -327,7 +328,7 @@ HDParam readgridsize(HDParam HD, float *&xcoord, float *&ycoord)
 			printf("%f\t%f\n", xcoord[i + j*HD.nx], ycoord[i + j*HD.nx]);
 		}
 	}
-
+	*/
 	return HD;
 
 }
