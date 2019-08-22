@@ -154,7 +154,7 @@ void readcoord(HDParam HD,std::string filename, int xflag, float *&coord)
 		if (status != NC_NOERR) handle_error(status);
 
 	}
-
+	
 	status = nc_close(ncid);
 	
 
