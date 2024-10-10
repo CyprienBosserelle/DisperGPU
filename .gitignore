@@ -187,3 +187,8 @@ FakesAssemblies/
 GeneratedArtifacts/
 _Pvt_Extensions/
 ModelManifest.xml
+*.db
+*.vcxproj
+/DisperGPU
+DisperGPU/DisperGPU.vcxproj
+DisperGPU/DisperGPU.vcxproj

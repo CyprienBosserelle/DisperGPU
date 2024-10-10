@@ -280,7 +280,7 @@ HDParam readgridsize(HDParam HD, float *&xcoord, float *&ycoord)
 	// for regular grid that follow the coards convention:
 
 	//inquire variable name for x and y dimension of hh
-	status = nc_inq_varid(ncid, HD.Hvarname.c_str(), &varid);
+	status = nc_inq_varid(ncid, HD.Uvarname.c_str(), &varid);
 	if (status != NC_NOERR)	handle_error(status);
 
 	status = nc_inq_vardimid(ncid, varid, dimids);
