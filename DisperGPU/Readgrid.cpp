@@ -45,6 +45,13 @@ template <class T> const T& round(const T& a)
   return floor( a + 0.5 );
   }
 
+template <class T> int ftoi(T value) {
+	return (value >= 0 ? static_cast<int>(value + 0.5)
+		: static_cast<int>(value - 0.5));
+}
+template int ftoi<float>(float value);
+template int ftoi<double>(double value);
+
 int readvarinfo(std::string filename, std::string Varname, size_t *&ddimU)
 {
 	// This function reads the dimentions for each variables
@@ -971,11 +978,11 @@ float interp2posCPU(int nx, int ny, float x, float y, float *Ux)
 	int x1,x2;
 	int y1,y2;
 
-	x1 = floor(x);
-	x2 = x1+1;
+	x1 = max(ftoi(floor(x)),0);
+	x2 = min(x1+1,nx-1);
 
-	y1 = floor(y);
-	y2 = y1+1;
+	y1 = max(ftoi(floor(y)),0);
+	y2 = min(y1+1,ny-1);
 
 	float Q11 = Ux[x1 + y1*nx];
 	float Q12 = Ux[x1 + y2*nx];
