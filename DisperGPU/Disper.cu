@@ -102,6 +102,15 @@ HDParam GPUstep(Param Dparam, HDParam HD)
 
 		int steptoread = HD.hdstep+1;
 
+		int nstpvalid = HD.nt - HD.hdstart;
+
+		if (steptoread >= HD.nt)
+		{
+
+			steptoread = HD.hdstart + (HD.hdstep + 1 - HD.hdstart) % (HD.nt - HD.hdstart);
+				//int(HD.hdstep + 1 - floor((HD.hdstep + 1) / HD.nt) * HD.nt);
+		}
+
 		if (Dparam.backswitch>0)
 		{
 			steptoread = HD.hdend - HD.hdstep;
