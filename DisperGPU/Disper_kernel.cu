@@ -284,7 +284,91 @@ __global__ void updatepartposQ3D(int npart, float dt, float Eh, float Ev, float 
 
 				xxx = xxx + (Ux*dt + Xd) / distu; // Need to add the runge kutta scheme here or not if time step is small enough
 				yyy = yyy + (Vx*dt + Yd) / distv;
-				zzz = min(max((zzz*Hx + Vd - ws*dt)/Hx,0.0f),1.0f);
+				zzz = min(max((zzz*Hx + (Vd - ws)*dt)/Hx,0.0f),1.0f);
+			}
+		}
+	}
+
+	ttt = ttt + dt;
+	partpos[i] = make_float4(xxx, yyy, zzz, ttt);
+
+
+
+
+}
+
+__global__ void updatepartposQ3DCB(int npart, float dt, float Eh, float Ev, float mindepth, float ws, float* dd_rand, float4* partpos)
+{
+	int i = blockIdx.x * blockDim.x * blockDim.y + blockDim.x * threadIdx.y + threadIdx.x;
+
+	float Ux = 0.0f;
+	float Vx = 0.0f;
+	float Hx = 1.0f;
+	float Xd = 0.0f; //Diffusion term
+	float Yd = 0.0f;
+	float Vd = 0.0f;
+
+	float zo = 0.3;
+
+	float zow = 0.3;
+
+	float Wu = 1.0;
+	float Wv = 9.0;
+
+
+	float facvel = 1.0f;
+
+	float facwind = 0.0f;
+
+	float hwind = 1.0;
+
+
+	float distu, distv;
+
+
+	float xxx, yyy, zzz, ttt;
+
+	xxx = partpos[i].x; //should be in i,j
+	yyy = partpos[i].y;
+	zzz = partpos[i].z;
+	ttt = partpos[i].w;
+
+
+	if (ttt >= 0.0f)
+	{
+		//Interpolate wter depth, Uvel Vvel at the particle position
+
+		Ux = tex2D(texU, xxx, yyy);
+		Vx = tex2D(texV, xxx + 0.5, yyy - 0.5);// U and V don't have the same coordinates but in the number of nodes it is just off by half a grid node in both dimension
+		Hx = tex2D(texH, xxx, yyy);
+		distu = tex2D(texdXU, xxx, yyy);
+		distv = tex2D(texdYV, xxx + 0.5, yyy - 0.5);
+
+		if (distu > 0.0001 && distv > 0.0001)//Avoid the div by zero which makes i and j #INF
+		{
+			if (Hx >= mindepth)
+			{
+				// old formulation
+				//Xd=(dd_rand[i]*2-1)*sqrtf(6*Eh*dt);
+				//Yd=(dd_rand[npart-i]*2-1)*sqrtf(6*Eh*dt);
+
+				float zr = zzz * Hx;
+
+				facvel = log10f((zr)/zo) / log10(0.37*Hx/zo);
+
+				if (zr > Hx - hwind)
+				{
+					facwind = 0.03f * log10f(max(zr-(Hx-hwind),zo) / zo) / log10(0.37 * hwind / zo);
+				}
+
+				//formulation used in Viikmae et al.
+				Xd = sqrtf(-4.0f * Eh * dt * logf(1 - dd_rand[i])) * cosf(2.0f * pi * dd_rand[npart - i]);
+				Yd = sqrtf(-4.0f * Eh * dt * logf(1 - dd_rand[i])) * sinf(2.0f * pi * dd_rand[npart - i]);
+				Vd = sqrtf(-4.0f * Ev * dt * logf(1 - dd_rand[i])) * cosf(2.0f * pi * dd_rand[npart - i]);
+
+				xxx = xxx + ((Ux * facvel + Wu*facwind) * dt + Xd) / distu; // Need to add the runge kutta scheme here or not if time step is small enough
+				yyy = yyy + ((Vx * facvel + Wv*facwind) * dt + Yd) / distv;
+				zzz = min(max((zr + (Vd - ws) * dt) / Hx, 0.0f), 1.0f);
 			}
 		}
 	}
