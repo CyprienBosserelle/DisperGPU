@@ -308,7 +308,7 @@ __global__ void updatepartposQ3DCB(int npart, float dt, float Eh, float Ev, floa
 	float Yd = 0.0f;
 	float Vd = 0.0f;
 
-	float zo = 0.3;
+	float zo = 0.03;
 
 	float zow = 0.3;
 
@@ -354,11 +354,11 @@ __global__ void updatepartposQ3DCB(int npart, float dt, float Eh, float Ev, floa
 
 				float zr = zzz * Hx;
 
-				facvel = log10f((zr)/zo) / log10(0.37*Hx/zo);
+				//facvel = max(log10f(max(zr,zo) / zo) / log10(0.37 * Hx / zo),2.0);
 
-				if (zr > Hx - hwind)
+				if (zr > (Hx - hwind))
 				{
-					facwind = 0.03f * log10f(max(zr-(Hx-hwind),zo) / zo) / log10(0.37 * hwind / zo);
+					//facwind = min(0.002f * log10f(max(zr-(Hx-hwind),zo) / zo) / log10(0.37 * hwind / zo),0.1);
 				}
 
 				//formulation used in Viikmae et al.
